@@ -54,6 +54,8 @@ class FrancaisProRepository(
     val exerciseAttempts: Flow<List<ExerciseAttempt>> = db.exerciseDao().observeAttempts()
     val allDictionaryEntries: Flow<List<DictionaryEntry>> = db.dictionaryDao().observeAllEntries()
     val recentDictionaryEntries: Flow<List<DictionaryEntry>> = db.dictionaryDao().observeRecentEntries()
+    val dictionaryCategories: Flow<List<String>> = db.dictionaryDao().observeCategories()
+    val dictionaryTotalCount: Flow<Int> = db.dictionaryDao().observeTotalCount()
     val allVerbs: Flow<List<Verb>> = db.conjugationDao().observeAllVerbs()
     val correctionHistory: Flow<List<CorrectionHistory>> = db.correctionDao().observeHistory()
     val vocabularyWords: Flow<List<VocabularyWord>> = db.vocabularyDao().observeAllWords()
@@ -208,26 +210,56 @@ class FrancaisProRepository(
         if (successes >= 5) unlockAchievement("ach_5_exercises")
     }
 
-    // --- Dictionnaire local ---
-    fun searchDictionary(query: String): Flow<List<DictionaryEntry>> {
+    // --- Dictionnaire local (Room SQLite 100 % hors ligne) ---
+    fun searchDictionary(
+        query: String,
+        category: String? = null,
+        scope: DictionarySearchScope = DictionarySearchScope.ALL
+    ): Flow<List<DictionaryEntry>> {
         val trimmed = query.trim()
-        if (trimmed.isEmpty()) return allDictionaryEntries
+        val activeCategory = category?.takeIf { it.isNotBlank() && it != "Tous" }
         val normalized = FrenchNormalizer.stripAccents(trimmed)
-        return db.dictionaryDao().searchEntries(normalized, trimmed)
+        return when (scope) {
+            DictionarySearchScope.ALL -> {
+                if (trimmed.isEmpty()) {
+                    if (activeCategory == null) allDictionaryEntries
+                    else db.dictionaryDao().observeByCategory(activeCategory)
+                } else {
+                    db.dictionaryDao().searchEntries(normalized, trimmed, activeCategory)
+                }
+            }
+            DictionarySearchScope.DEFINITIONS ->
+                db.dictionaryDao().searchByDefinition(normalized, trimmed, activeCategory)
+            DictionarySearchScope.SYNONYMS ->
+                db.dictionaryDao().searchBySynonym(normalized, trimmed, activeCategory)
+            DictionarySearchScope.ANTONYMS ->
+                db.dictionaryDao().searchByAntonym(normalized, trimmed, activeCategory)
+        }
     }
 
     suspend fun fuzzyDictionarySuggestions(query: String): List<DictionaryEntry> = withContext(Dispatchers.Default) {
         val norm = FrenchNormalizer.stripAccents(query.trim())
         if (norm.length < 2) return@withContext emptyList()
         val all = db.dictionaryDao().getAllSnapshot()
-        all.map { entry ->
-            entry to correctionEngine.lexicon.damerauLevenshtein(norm, entry.normalizedWord)
+        all.mapNotNull { entry ->
+            val wordDist = correctionEngine.lexicon.damerauLevenshtein(norm, entry.normalizedWord)
+            val synHit = entry.synonymsPipe.split("|")
+                .map { FrenchNormalizer.stripAccents(it.trim()) }
+                .filter { it.isNotEmpty() }
+                .minOfOrNull { correctionEngine.lexicon.damerauLevenshtein(norm, it) } ?: 99
+            val antHit = entry.antonymsPipe.split("|")
+                .map { FrenchNormalizer.stripAccents(it.trim()) }
+                .filter { it.isNotEmpty() }
+                .minOfOrNull { correctionEngine.lexicon.damerauLevenshtein(norm, it) } ?: 99
+            val bestDist = minOf(wordDist, synHit, antHit)
+            if (bestDist <= 2 || entry.normalizedWord.contains(norm)) entry to bestDist else null
         }
-            .filter { it.second <= 2 || it.first.normalizedWord.contains(norm) }
             .sortedBy { it.second }
             .map { it.first }
-            .take(8)
+            .take(6)
     }
+
+    fun observeDictionaryEntry(id: String): Flow<DictionaryEntry?> = db.dictionaryDao().observeById(id)
 
     suspend fun getDictionaryEntry(id: String): DictionaryEntry? {
         val item = db.dictionaryDao().getById(id)
@@ -235,6 +267,49 @@ class FrancaisProRepository(
             db.dictionaryDao().markViewed(id, System.currentTimeMillis())
         }
         return item
+    }
+
+    suspend fun findDictionaryEntryByWord(word: String): DictionaryEntry? {
+        val norm = FrenchNormalizer.stripAccents(word.trim())
+        if (norm.isEmpty()) return null
+        return db.dictionaryDao().findByNormalizedWord(norm)
+    }
+
+    suspend fun addCustomDictionaryEntry(
+        word: String,
+        partOfSpeech: String,
+        definition: String,
+        synonyms: List<String>,
+        antonyms: List<String>,
+        example: String,
+        level: String = "B1"
+    ): DictionaryEntry {
+        val cleanWord = word.trim().replaceFirstChar { it.uppercase() }
+        val normalized = FrenchNormalizer.stripAccents(cleanWord)
+        val entry = DictionaryEntry(
+            id = "custom_${normalized}_${System.currentTimeMillis()}",
+            word = cleanWord,
+            normalizedWord = normalized,
+            definition = definition.trim(),
+            partOfSpeech = partOfSpeech.trim().ifBlank { "Nom" },
+            gender = "Personnel",
+            pluralForm = "—",
+            pronunciation = "/$normalized/",
+            synonymsPipe = synonyms.map { it.trim() }.filter { it.isNotEmpty() }.joinToString("|"),
+            antonymsPipe = antonyms.map { it.trim() }.filter { it.isNotEmpty() }.joinToString("|"),
+            examplesPipe = example.trim(),
+            expressionsPipe = "",
+            level = level,
+            lastViewedAt = System.currentTimeMillis()
+        )
+        db.dictionaryDao().insertEntry(entry)
+        return entry
+    }
+
+    suspend fun deleteCustomDictionaryEntry(id: String) {
+        if (id.startsWith("custom_")) {
+            db.dictionaryDao().deleteEntryById(id)
+        }
     }
 
     // --- Conjugueur local ---

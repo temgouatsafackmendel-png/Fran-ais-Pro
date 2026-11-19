@@ -90,17 +90,103 @@ interface DictionaryDao {
     @Query("SELECT * FROM dictionary_entries ORDER BY word ASC")
     fun observeAllEntries(): Flow<List<DictionaryEntry>>
 
-    @Query("SELECT * FROM dictionary_entries WHERE normalizedWord LIKE :query || '%' OR word LIKE '%' || :rawQuery || '%' OR definition LIKE '%' || :rawQuery || '%' ORDER BY word ASC LIMIT 80")
-    fun searchEntries(query: String, rawQuery: String): Flow<List<DictionaryEntry>>
+    @Query(
+        """
+        SELECT * FROM dictionary_entries
+        WHERE (:category IS NULL OR partOfSpeech = :category)
+          AND (
+              normalizedWord LIKE :query || '%'
+              OR normalizedWord LIKE '%' || :query || '%'
+              OR word LIKE '%' || :rawQuery || '%'
+              OR definition LIKE '%' || :rawQuery || '%'
+              OR synonymsPipe LIKE '%' || :rawQuery || '%'
+              OR antonymsPipe LIKE '%' || :rawQuery || '%'
+          )
+        ORDER BY
+            CASE
+                WHEN normalizedWord = :query THEN 0
+                WHEN normalizedWord LIKE :query || '%' THEN 1
+                WHEN synonymsPipe LIKE '%' || :rawQuery || '%' THEN 2
+                WHEN antonymsPipe LIKE '%' || :rawQuery || '%' THEN 3
+                ELSE 4
+            END,
+            word ASC
+        LIMIT 100
+        """
+    )
+    fun searchEntries(query: String, rawQuery: String, category: String? = null): Flow<List<DictionaryEntry>>
+
+    @Query(
+        """
+        SELECT * FROM dictionary_entries
+        WHERE (:category IS NULL OR partOfSpeech = :category)
+          AND (
+              :rawQuery = ''
+              OR definition LIKE '%' || :rawQuery || '%'
+              OR normalizedWord LIKE '%' || :query || '%'
+          )
+        ORDER BY word ASC
+        LIMIT 100
+        """
+    )
+    fun searchByDefinition(query: String, rawQuery: String, category: String? = null): Flow<List<DictionaryEntry>>
+
+    @Query(
+        """
+        SELECT * FROM dictionary_entries
+        WHERE (:category IS NULL OR partOfSpeech = :category)
+          AND synonymsPipe != ''
+          AND (
+              :rawQuery = ''
+              OR synonymsPipe LIKE '%' || :rawQuery || '%'
+              OR normalizedWord LIKE '%' || :query || '%'
+          )
+        ORDER BY
+            CASE WHEN synonymsPipe LIKE '%' || :rawQuery || '%' THEN 0 ELSE 1 END,
+            word ASC
+        LIMIT 100
+        """
+    )
+    fun searchBySynonym(query: String, rawQuery: String, category: String? = null): Flow<List<DictionaryEntry>>
+
+    @Query(
+        """
+        SELECT * FROM dictionary_entries
+        WHERE (:category IS NULL OR partOfSpeech = :category)
+          AND antonymsPipe != ''
+          AND (
+              :rawQuery = ''
+              OR antonymsPipe LIKE '%' || :rawQuery || '%'
+              OR normalizedWord LIKE '%' || :query || '%'
+          )
+        ORDER BY
+            CASE WHEN antonymsPipe LIKE '%' || :rawQuery || '%' THEN 0 ELSE 1 END,
+            word ASC
+        LIMIT 100
+        """
+    )
+    fun searchByAntonym(query: String, rawQuery: String, category: String? = null): Flow<List<DictionaryEntry>>
 
     @Query("SELECT * FROM dictionary_entries WHERE partOfSpeech = :category ORDER BY word ASC")
     fun observeByCategory(category: String): Flow<List<DictionaryEntry>>
+
+    @Query("SELECT DISTINCT partOfSpeech FROM dictionary_entries ORDER BY partOfSpeech ASC")
+    fun observeCategories(): Flow<List<String>>
+
+    @Query("SELECT COUNT(*) FROM dictionary_entries")
+    fun observeTotalCount(): Flow<Int>
 
     @Query("SELECT * FROM dictionary_entries WHERE lastViewedAt > 0 ORDER BY lastViewedAt DESC LIMIT 20")
     fun observeRecentEntries(): Flow<List<DictionaryEntry>>
 
     @Query("SELECT * FROM dictionary_entries WHERE id = :id")
+    fun observeById(id: String): Flow<DictionaryEntry?>
+
+    @Query("SELECT * FROM dictionary_entries WHERE id = :id")
     suspend fun getById(id: String): DictionaryEntry?
+
+    @Query("SELECT * FROM dictionary_entries WHERE normalizedWord = :normalizedWord LIMIT 1")
+    suspend fun findByNormalizedWord(normalizedWord: String): DictionaryEntry?
 
     @Query("SELECT * FROM dictionary_entries")
     suspend fun getAllSnapshot(): List<DictionaryEntry>
@@ -109,7 +195,16 @@ interface DictionaryDao {
     suspend fun markViewed(id: String, timestamp: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEntry(entry: DictionaryEntry)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEntries(entries: List<DictionaryEntry>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertEntriesIgnore(entries: List<DictionaryEntry>)
+
+    @Query("DELETE FROM dictionary_entries WHERE id = :id")
+    suspend fun deleteEntryById(id: String)
 
     @Query("SELECT COUNT(*) FROM dictionary_entries")
     suspend fun countEntries(): Int

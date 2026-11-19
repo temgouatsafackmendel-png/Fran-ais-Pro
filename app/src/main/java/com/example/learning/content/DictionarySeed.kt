@@ -203,6 +203,174 @@ object DictionarySeed {
             listOf("construction", "agencement", "structure phrastique"), listOf("incohérence"),
             listOf("Une syntaxe maîtrisée rend un texte fluide et agréable à lire."),
             listOf("Erreur de syntaxe", "Analyse syntaxique"), "B1"
+        ),
+        entry(
+            "dic_25", "Harmonie", "Accord juste et équilibré entre les parties d'un ensemble, des sons ou des idées.",
+            "Nom", "Féminin", "Harmonies", "/aʁ.mɔ.ni/",
+            listOf("accord", "équilibre", "entente", "cohérence"), listOf("désaccord", "dissonance", "conflit"),
+            listOf("L'harmonie des temps verbaux donne de la fluidité au récit."),
+            listOf("En harmonie avec", "Vivre en harmonie"), "B1"
+        ),
+        entry(
+            "dic_26", "Désaccord", "Absence d'entente ou divergence d'opinion entre deux personnes ou deux idées.",
+            "Nom", "Masculin", "Désaccords", "/de.za.kɔʁ/",
+            listOf("divergence", "différend", "conflit"), listOf("accord", "harmonie", "entente"),
+            listOf("Ils ont exprimé leur désaccord avec calme et courtoisie."),
+            listOf("Être en désaccord", "Point de désaccord"), "A2"
+        ),
+        entry(
+            "dic_27", "Précision", "Caractère de ce qui est exact, rigoureux et nettement délimité.",
+            "Nom", "Féminin", "Précisions", "/pʁe.si.zjɔ̃/",
+            listOf("exactitude", "rigueur", "clarté", "netteté"), listOf("flou", "imprécision", "à-peu-près"),
+            listOf("La précision du vocabulaire évite toute ambiguïté."),
+            listOf("Avec précision", "Apporter une précision"), "B1"
+        ),
+        entry(
+            "dic_28", "Limpidité", "Transparence parfaite d'un liquide ou clarté remarquable d'un raisonnement.",
+            "Nom", "Féminin", "Limpidités", "/lɛ̃.pi.di.te/",
+            listOf("clarté", "transparence", "netteté"), listOf("opacité", "obscurité", "confusion"),
+            listOf("La limpidité de ses explications rend la grammaire accessible."),
+            listOf("D'une limpidité exemplaire"), "B2"
+        ),
+        entry(
+            "dic_29", "Confirmer", "Rendre plus certain par une preuve nouvelle ou valider une information déjà annoncée.",
+            "Verbe", "Variable", "— (1er groupe)", "/kɔ̃.fiʁ.me/",
+            listOf("corroborer", "valider", "attester", "certifier"), listOf("infirmer", "démentir", "réfuter"),
+            listOf("Les résultats confirment votre progression en orthographe."),
+            listOf("Confirmer la règle", "Confirmer un rendez-vous"), "A2"
+        ),
+        entry(
+            "dic_30", "Réfuter", "Démontrer la fausseté d'une affirmation ou d'une thèse par des arguments solides.",
+            "Verbe", "Variable", "— (1er groupe)", "/ʁe.fy.te/",
+            listOf("contester", "infirmer", "démentir"), listOf("confirmer", "corroborer", "approuver"),
+            listOf("L'orateur a su réfuter chaque objection avec méthode."),
+            listOf("Réfuter un argument", "Réfuter une accusation"), "C1"
+        ),
+        entry(
+            "dic_31", "Bref", "Qui dure peu de temps ou qui s'exprime en peu de mots.",
+            "Adjectif", "Masculin (fém. brève)", "Brefs / Brèves", "/bʁɛf/",
+            listOf("concis", "court", "succinct", "rapide"), listOf("long", "verbeux", "prolixe"),
+            listOf("Un bref rappel des règles suffit avant l'exercice."),
+            listOf("En bref", "Pour faire bref"), "A2"
+        ),
+        entry(
+            "dic_32", "Verbeux", "Qui emploie trop de mots inutiles pour exprimer une idée simple.",
+            "Adjectif", "Masculin (fém. verbeuse)", "Verbeux / Verbeuses", "/vɛʁ.bø/",
+            listOf("prolixe", "bavard", "redondant"), listOf("concis", "bref", "synthétique"),
+            listOf("Évitez les tournures verbeuses dans une lettre professionnelle."),
+            listOf("Style verbeux", "Discours verbeux"), "C1"
+        ),
+        entry(
+            "dic_33", "Complet", "Qui renferme toutes ses parties, auquel il ne manque aucun élément.",
+            "Adjectif", "Masculin (fém. complète)", "Complets / Complètes", "/kɔ̃.plɛ/",
+            listOf("exhaustif", "intégral", "entier", "total"), listOf("partiel", "incomplet", "lacunaire"),
+            listOf("Ce guide complet fonctionne entièrement sans connexion."),
+            listOf("À titre complet", "Dossier complet"), "A1"
+        ),
+        entry(
+            "dic_34", "Lacunaire", "Qui comporte des manques, des omissions ou des insuffisances notables.",
+            "Adjectif", "Épicène", "Lacunaires", "/la.ky.nɛʁ/",
+            listOf("incomplet", "partiel", "sommaire"), listOf("complet", "exhaustif", "approfondi"),
+            listOf("Une révision lacunaire laisse subsister des hésitations sur les accords."),
+            listOf("Documentation lacunaire", "Savoir lacunaire"), "C1"
+        ),
+        entry(
+            "dic_35", "Clairvoyant", "Qui discerne avec justesse et finesse la réalité ou l'évolution d'une situation.",
+            "Adjectif", "Masculin (fém. clairvoyante)", "Clairvoyants / Clairvoyantes", "/klɛʁ.vwa.jɑ̃/",
+            listOf("perspicace", "lucide", "avisé", "sagace"), listOf("aveugle", "naïf", "imprévoyant"),
+            listOf("Son jugement clairvoyant a permis d'anticiper la difficulté."),
+            listOf("Esprit clairvoyant"), "B2"
+        ),
+        entry(
+            "dic_36", "Naïf", "Qui fait preuve d'une confiance excessive ou d'une simplicité ingénue.",
+            "Adjectif", "Masculin (fém. naïve)", "Naïfs / Naïves", "/na.if/",
+            listOf("crédule", "ingénu", "candide"), listOf("perspicace", "clairvoyant", "méfiant"),
+            listOf("Il serait naïf de croire qu'on maîtrise une langue sans pratique."),
+            listOf("Question naïve", "Regard naïf"), "B1"
+        ),
+        entry(
+            "dic_37", "Réaliste", "Qui tient compte des faits concrets et des limites réelles avant d'agir.",
+            "Adjectif", "Épicène", "Réalistes", "/ʁe.a.list/",
+            listOf("pragmatique", "concret", "lucide"), listOf("utopique", "irréaliste", "chimérique"),
+            listOf("Fixez-vous un objectif quotidien réaliste de quinze minutes."),
+            listOf("Approche réaliste", "Objectif réaliste"), "B1"
+        ),
+        entry(
+            "dic_38", "Utopique", "Qui relève d'un idéal séduisant mais difficilement réalisable dans les faits.",
+            "Adjectif", "Épicène", "Utopiques", "/y.tɔ.pik/",
+            listOf("irréaliste", "chimérique", "idéaliste"), listOf("réaliste", "pragmatique", "concret"),
+            listOf("Apprendre mille mots en une soirée paraît utopique."),
+            listOf("Projet utopique", "Vision utopique"), "B2"
+        ),
+        entry(
+            "dic_39", "Évoluer", "Se transformer progressivement, souvent vers un état plus élaboré ou plus performant.",
+            "Verbe", "Variable", "— (1er groupe)", "/e.vɔ.lɥe/",
+            listOf("progresser", "avancer", "se développer"), listOf("stagner", "régresser", "reculer"),
+            listOf("Votre niveau évolue au fil des exercices et des dictées."),
+            listOf("Faire évoluer", "Évoluer favorablement"), "B1"
+        ),
+        entry(
+            "dic_40", "Stagner", "Rester immobile, sans progression ni amélioration notable.",
+            "Verbe", "Variable", "— (1er groupe)", "/staɡ.ne/",
+            listOf("piétiner", "végéter", "s'enliser"), listOf("progresser", "évoluer", "avancer"),
+            listOf("Les révisions espacées évitent de stagner dans l'acquisition du lexique."),
+            listOf("Laisser stagner"), "B2"
+        ),
+        entry(
+            "dic_41", "Subtilité", "Qualité de ce qui est fin, délicat et perceptible grâce à un esprit attentif.",
+            "Nom", "Féminin", "Subtilités", "/syb.ti.li.te/",
+            listOf("nuance", "finesse", "délicatesse"), listOf("lourdeur", "simplisme", "grossièreté"),
+            listOf("Les subtilités de la ponctuation changent parfois tout le sens d'une phrase."),
+            listOf("Saisir une subtilité", "Subtilité de langage"), "B2"
+        ),
+        entry(
+            "dic_42", "Négligence", "Manque de soin, d'attention ou d'application dans l'exécution d'une tâche.",
+            "Nom", "Féminin", "Négligences", "/ne.ɡli.ʒɑ̃s/",
+            listOf("inattention", "laxisme", "étourderie"), listOf("rigueur", "soin", "vigilance", "précision"),
+            listOf("Une simple négligence d'accent peut modifier le sens d'un mot."),
+            listOf("Par négligence", "Faute de négligence"), "B1"
+        ),
+        entry(
+            "dic_43", "Compenser", "Contrebalancer un manque ou un défaut par un élément équivalent.",
+            "Verbe", "Variable", "— (1er groupe)", "/kɔ̃.pɑ̃.se/",
+            listOf("pallier", "équilibrer", "atténuer"), listOf("aggraver", "accentuer", "empirer"),
+            listOf("Sa régularité compense largement ses débuts hésitants."),
+            listOf("Compenser une perte", "Compenser un manque"), "B1"
+        ),
+        entry(
+            "dic_44", "Empirer", "Devenir pire, s'aggraver au fil du temps.",
+            "Verbe", "Variable", "— (1er groupe)", "/ɑ̃.pi.ʁe/",
+            listOf("s'aggraver", "dégénérer", "se détériorer"), listOf("s'améliorer", "atténuer", "pallier"),
+            listOf("Sans relecture attentive, les fautes d'inattention risquent d'empirer."),
+            listOf("Aller en empirant"), "B1"
+        ),
+        entry(
+            "dic_45", "Assimiler", "Intégrer pleinement une connaissance au point de pouvoir l'utiliser naturellement.",
+            "Verbe", "Variable", "— (1er groupe)", "/a.si.mi.le/",
+            listOf("apprendre", "intégrer", "comprendre", "maîtriser"), listOf("oublier", "rejeter", "ignorer"),
+            listOf("Les cartes SM-2 aident à assimiler durablement le vocabulaire."),
+            listOf("Assimiler une règle", "Assimiler un concept"), "B2"
+        ),
+        entry(
+            "dic_46", "Oublier", "Perdre le souvenir d'une information ou omettre de faire quelque chose.",
+            "Verbe", "Variable", "— (1er groupe)", "/u.bli.je/",
+            listOf("omettre", "négliger", "effacer"), listOf("apprendre", "retenir", "assimiler", "se souvenir"),
+            listOf("N'oubliez pas d'accorder l'adjectif avec le nom qu'il qualifie."),
+            listOf("Oublier de faire", "Se faire oublier"), "A1"
+        ),
+        entry(
+            "dic_47", "Empathie", "Capacité de se mettre à la place d'autrui pour comprendre ses émotions et son point de vue.",
+            "Nom", "Féminin", "Empathies", "/ɑ̃.pa.ti/",
+            listOf("bienveillance", "compréhension", "écoute", "compassion"), listOf("indifférence", "hostilité", "froideur"),
+            listOf("L'empathie améliore la qualité des échanges écrits comme oraux."),
+            listOf("Faire preuve d'empathie", "Écoute empathique"), "B2"
+        ),
+        entry(
+            "dic_48", "Toutefois", "Adverbe de liaison introduisant une réserve, une nuance ou une opposition modérée.",
+            "Adverbe", "Invariable", "Invariable", "/tut.fwa/",
+            listOf("néanmoins", "cependant", "pourtant", "malgré tout"), listOf("donc", "ainsi", "par conséquent"),
+            listOf("Le texte est clair ; toutefois, deux accords restent à vérifier."),
+            listOf("Et toutefois", "Si toutefois"), "B1"
         )
     )
 

@@ -30,8 +30,9 @@ class DatabaseSeeder(
             if (db.exerciseDao().countExercises() == 0) {
                 db.exerciseDao().insertExercises(ExercisesAndDictationsSeed.exercises())
             }
-            if (db.dictionaryDao().countEntries() == 0) {
-                db.dictionaryDao().insertEntries(DictionarySeed.entries())
+            val seedEntries = DictionarySeed.entries()
+            if (db.dictionaryDao().countEntries() < seedEntries.size) {
+                db.dictionaryDao().insertEntriesIgnore(seedEntries)
             }
             if (db.vocabularyDao().countWords() == 0) {
                 db.vocabularyDao().insertWords(ExercisesAndDictationsSeed.vocabularyWords())

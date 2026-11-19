@@ -15,7 +15,7 @@
 [![Confidentialité](https://img.shields.io/badge/Permission%20INTERNET-Aucune-16A36A?style=flat-square)](SECURITY.md)
 [![Licence](https://img.shields.io/badge/Licence-MIT-F59E0B?style=flat-square)](LICENSE)
 
-[Aperçu](#-aperçu-de-linterface) · [Fonctionnalités](#-fonctionnalités-principales) · [Télécharger l'APK](#-téléchargement-et-installation-apk) · [Architecture](#-architecture--stack-technique) · [Documentation](#-documentation-du-projet) · [Auteur](#-à-propos--auteur)
+[Aperçu](#-aperçu-de-linterface) · [Démo guidée](docs/DEMO.md) · [Guide utilisateur](docs/USER_GUIDE.md) · [Fonctionnalités](#-fonctionnalités-principales) · [APK](#-téléchargement-et-installation-apk) · [Auteur](#-à-propos--auteur)
 
 </div>
 
@@ -155,9 +155,10 @@ gradle :app:bundleRelease
 
 | Document | Contenu |
 | :--- | :--- |
+| [`docs/DEMO.md`](docs/DEMO.md) | Scénario de démonstration guidée (3 min) avec phrases de test et checklist hors ligne |
+| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | Guide d'utilisation complet (prise en main, correcteur, dictées, statistiques, sauvegarde JSON) |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Architecture logicielle, modules, moteur NLP hors ligne et schéma Room |
 | [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | Palette sémantique Clair/Sombre, typographie 9 niveaux, grille 4 dp et composants |
-| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | Guide utilisateur complet (prise en main, correcteur, dictées, sauvegarde JSON) |
 | [`docs/RELEASE_GUIDE.md`](docs/RELEASE_GUIDE.md) | Guide GitHub, CI/CD, signature APK/AAB, SHA-256 et captures d'écran |
 | [`docs/GITHUB_DESCRIPTION.md`](docs/GITHUB_DESCRIPTION.md) | Présentation GitHub prête à copier (About, Topics et notes de Release v1.0.0) |
 | [`docs/screenshots/README.md`](docs/screenshots/README.md) | Catalogue des captures d'écran et procédure de capture réelle via ADB |

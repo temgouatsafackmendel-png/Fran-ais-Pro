@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Download
@@ -238,7 +239,10 @@ fun ProfileScreen(
                 SectionHeader(title = "Espace & réglages")
                 Spacer(Modifier.height(10.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ProfileNavRow(Icons.Filled.BarChart, "Statistiques détaillées", "4 graphiques de progression et badges", "profile_nav_stats") {
+                    ProfileNavRow(Icons.AutoMirrored.Filled.MenuBook, "Démo & Guide d'utilisation", "Essai interactif du correcteur et mode d'emploi", "profile_nav_guide") {
+                        onNavigate(Routes.USER_GUIDE)
+                    }
+                    ProfileNavRow(Icons.Filled.BarChart, "Statistiques détaillées", "Graphiques interactifs de progression et badges", "profile_nav_stats") {
                         onNavigate(Routes.STATISTICS)
                     }
                     ProfileNavRow(Icons.Filled.History, "Historique", "Corrections et dictées enregistrées", "profile_nav_history") {

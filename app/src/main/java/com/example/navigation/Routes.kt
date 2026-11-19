@@ -33,6 +33,7 @@ object Routes {
     const val FAVORITES = "favorites"
     const val SETTINGS = "settings"
     const val BACKUP = "backup"
+    const val USER_GUIDE = "user_guide"
 
     fun lessonList(level: String) = "lesson_list/$level"
     fun lessonDetail(lessonId: String) = "lesson_detail/$lessonId"

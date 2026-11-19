@@ -22,17 +22,22 @@ import com.example.core.database.Verb
 import com.example.core.database.VocabularyProgress
 import com.example.core.database.VocabularyWord
 import com.example.core.datastore.LocalUserPreferences
+import com.example.data.DictionarySearchScope
 import com.example.data.FrancaisProRepository
 import com.example.learning.dictation.DictationEvaluation
 import com.example.learning.progression.AdaptiveProgressionEngine
 import com.example.learning.progression.LinguisticProfileSummary
 import com.example.linguistics.conjugation.IdentifiedVerbForm
 import com.example.linguistics.conjugation.VerbConjugationTable
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -40,6 +45,28 @@ data class LastDictationResultState(
     val dictation: Dictation,
     val userText: String,
     val evaluation: DictationEvaluation
+)
+
+/**
+ * État réactif du Dictionnaire alimenté exclusivement par la base locale Room.
+ */
+data class DictionaryUiState(
+    val query: String = "",
+    val selectedCategory: String = "Tous",
+    val selectedScope: DictionarySearchScope = DictionarySearchScope.ALL,
+    val favoritesOnly: Boolean = false,
+    val results: List<DictionaryEntry> = emptyList(),
+    val fuzzySuggestions: List<DictionaryEntry> = emptyList(),
+    val recentEntries: List<DictionaryEntry> = emptyList(),
+    val categories: List<String> = listOf("Tous"),
+    val totalCount: Int = 0
+)
+
+private data class DictionaryFilterParams(
+    val query: String,
+    val category: String,
+    val scope: DictionarySearchScope,
+    val favoritesOnly: Boolean
 )
 
 class MainAppViewModel(
@@ -117,6 +144,78 @@ class MainAppViewModel(
         AdaptiveProgressionEngine.computeProfileSummary("A1", 0, emptyList())
     )
 
+    // --- État Dictionnaire réactif (Room SQLite) ---
+    private val _dictionaryQuery = MutableStateFlow("")
+    private val _dictionaryCategory = MutableStateFlow("Tous")
+    private val _dictionaryScope = MutableStateFlow(DictionarySearchScope.ALL)
+    private val _dictionaryFavoritesOnly = MutableStateFlow(false)
+
+    private val dictionaryFilters: Flow<DictionaryFilterParams> = combine(
+        _dictionaryQuery,
+        _dictionaryCategory,
+        _dictionaryScope,
+        _dictionaryFavoritesOnly
+    ) { q, cat, scope, favOnly ->
+        DictionaryFilterParams(q, cat, scope, favOnly)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val dictionaryQueryMatches: Flow<Pair<List<DictionaryEntry>, List<DictionaryEntry>>> =
+        dictionaryFilters.flatMapLatest { params ->
+            repository.searchDictionary(
+                query = params.query,
+                category = params.category,
+                scope = params.scope
+            ).map { sqlResults ->
+                val fuzzy = if (sqlResults.isEmpty() && params.query.trim().length >= 2) {
+                    repository.fuzzyDictionarySuggestions(params.query)
+                } else {
+                    emptyList()
+                }
+                sqlResults to fuzzy
+            }
+        }
+
+    val dictionaryUiState: StateFlow<DictionaryUiState> = combine(
+        dictionaryFilters,
+        dictionaryQueryMatches,
+        repository.recentDictionaryEntries,
+        repository.dictionaryCategories,
+        repository.dictionaryTotalCount,
+        repository.favorites
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val params = values[0] as DictionaryFilterParams
+        @Suppress("UNCHECKED_CAST")
+        val matchesPair = values[1] as Pair<List<DictionaryEntry>, List<DictionaryEntry>>
+        @Suppress("UNCHECKED_CAST")
+        val recents = values[2] as List<DictionaryEntry>
+        @Suppress("UNCHECKED_CAST")
+        val dbCategories = values[3] as List<String>
+        val totalCount = values[4] as Int
+        @Suppress("UNCHECKED_CAST")
+        val favs = values[5] as List<Favorite>
+
+        val favWordIds = favs.filter { it.itemType == "WORD" }.map { it.itemId }.toSet()
+        val finalResults = if (params.favoritesOnly) {
+            matchesPair.first.filter { it.id in favWordIds }
+        } else {
+            matchesPair.first
+        }
+
+        DictionaryUiState(
+            query = params.query,
+            selectedCategory = params.category,
+            selectedScope = params.scope,
+            favoritesOnly = params.favoritesOnly,
+            results = finalResults,
+            fuzzySuggestions = matchesPair.second,
+            recentEntries = recents,
+            categories = listOf("Tous") + dbCategories,
+            totalCount = totalCount
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DictionaryUiState())
+
     // État Dictée récente
     private val _lastDictationResult = MutableStateFlow<LastDictationResultState?>(null)
     val lastDictationResult: StateFlow<LastDictationResultState?> = _lastDictationResult.asStateFlow()
@@ -184,9 +283,89 @@ class MainAppViewModel(
         viewModelScope.launch { repository.submitExerciseAttempt(exercise, answer, isCorrect) }
     }
 
-    // Actions Dictionnaire & Conjugueur
+    // Actions Dictionnaire (Room) & Conjugueur
+    fun updateDictionaryQuery(query: String) {
+        _dictionaryQuery.value = query
+    }
+
+    fun selectDictionaryCategory(category: String) {
+        _dictionaryCategory.value = category
+    }
+
+    fun selectDictionaryScope(scope: DictionarySearchScope) {
+        _dictionaryScope.value = scope
+    }
+
+    fun toggleDictionaryFavoritesOnly() {
+        _dictionaryFavoritesOnly.value = !_dictionaryFavoritesOnly.value
+    }
+
+    fun clearDictionaryFilters() {
+        _dictionaryQuery.value = ""
+        _dictionaryCategory.value = "Tous"
+        _dictionaryScope.value = DictionarySearchScope.ALL
+        _dictionaryFavoritesOnly.value = false
+    }
+
+    fun observeDictionaryEntry(id: String): Flow<DictionaryEntry?> =
+        repository.observeDictionaryEntry(id)
+
     fun markDictionaryWordViewed(id: String) {
         viewModelScope.launch { repository.getDictionaryEntry(id) }
+    }
+
+    fun resolveRelatedDictionaryWord(
+        term: String,
+        onFoundEntryId: (String) -> Unit,
+        onFallbackSearch: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val found = repository.findDictionaryEntryByWord(term)
+            if (found != null) {
+                repository.getDictionaryEntry(found.id)
+                onFoundEntryId(found.id)
+            } else {
+                _dictionaryQuery.value = term
+                _dictionaryCategory.value = "Tous"
+                _dictionaryScope.value = DictionarySearchScope.ALL
+                _dictionaryFavoritesOnly.value = false
+                onFallbackSearch(term)
+            }
+        }
+    }
+
+    fun addCustomDictionaryWord(
+        word: String,
+        partOfSpeech: String,
+        definition: String,
+        synonymsCsv: String,
+        antonymsCsv: String,
+        example: String,
+        level: String,
+        onCreated: (String) -> Unit = {}
+    ) {
+        if (word.isBlank() || definition.isBlank()) return
+        val synonyms = synonymsCsv.split(",", ";", "|").map { it.trim() }.filter { it.isNotEmpty() }
+        val antonyms = antonymsCsv.split(",", ";", "|").map { it.trim() }.filter { it.isNotEmpty() }
+        viewModelScope.launch {
+            val created = repository.addCustomDictionaryEntry(
+                word = word,
+                partOfSpeech = partOfSpeech,
+                definition = definition,
+                synonyms = synonyms,
+                antonyms = antonyms,
+                example = example,
+                level = level
+            )
+            onCreated(created.id)
+        }
+    }
+
+    fun deleteCustomDictionaryWord(id: String, onDeleted: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.deleteCustomDictionaryEntry(id)
+            onDeleted()
+        }
     }
 
     fun selectVerb(infinitive: String) {

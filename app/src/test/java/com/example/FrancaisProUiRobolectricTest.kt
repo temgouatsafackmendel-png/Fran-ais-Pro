@@ -9,12 +9,18 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasTestTag
 import com.example.core.database.UserProfile
+import com.example.data.DictionarySearchScope
+import com.example.features.DictionaryUiState
 import com.example.features.academy.LessonDetailScreen
 import com.example.features.correction.CorrectorScreen
 import com.example.features.correction.CorrectorUiState
 import com.example.features.dashboard.DashboardScreen
 import com.example.features.onboarding.OnboardingScreen
+import com.example.features.profile.DemoAndGuideScreen
+import com.example.features.reference.DictionaryScreen
+import com.example.features.reference.WordDetailScreen
 import com.example.learning.content.AcademyLessonsSeed
+import com.example.learning.content.DictionarySeed
 import com.example.learning.content.ExercisesAndDictationsSeed
 import com.example.learning.progression.AdaptiveProgressionEngine
 import com.example.linguistics.analysis.HybridCorrectionEngine
@@ -389,5 +395,105 @@ class FrancaisProUiRobolectricTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("error_donut_center_summary").performScrollTo()
         composeRule.onNodeWithText("60 %").assertIsDisplayed()
+    }
+
+    @Test
+    fun `demo and guide screen runs live offline correction and switches to user manual`() {
+        var openedInCorrector: String? = null
+        var navigatedTab: String? = null
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                DemoAndGuideScreen(
+                    correctionEngine = HybridCorrectionEngine(),
+                    onOpenInCorrector = { openedInCorrector = it },
+                    onNavigateToTab = { navigatedTab = it },
+                    onBack = {}
+                )
+            }
+        }
+
+        // Onglet Démo interactive actif par défaut
+        composeRule.onNodeWithText("Essai en direct du Correcteur").assertIsDisplayed()
+        composeRule.onNodeWithTag("demo_scenario_1").performClick()
+        composeRule.waitForIdle()
+
+        // Appliquer toutes les corrections sur le scénario réel (scroll dans le viewport Robolectric)
+        composeRule.onNodeWithTag("demo_list")
+            .performScrollToNode(hasTestTag("demo_tour_step_0"))
+        composeRule.onNodeWithTag("demo_apply_all_btn").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("demo_open_in_corrector_btn").performClick()
+        composeRule.waitForIdle()
+        assertTrue(!openedInCorrector.isNullOrBlank())
+
+        // Bascule vers l'onglet Guide d'utilisation
+        composeRule.onNodeWithTag("guide_tab_manual").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Démarrage & Autonomie 100 % hors ligne").assertIsDisplayed()
+        composeRule.onNodeWithTag("guide_manual_list")
+            .performScrollToNode(hasTestTag("guide_section_1"))
+        composeRule.onNodeWithTag("guide_section_1").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Maîtriser le Correcteur interactif").assertIsDisplayed()
+        assertTrue(navigatedTab == null)
+    }
+
+    @Test
+    fun `dictionary screen displays definitions synonyms antonyms and interactive detail chips`() {
+        val entries = DictionarySeed.entries().take(3)
+        var selectedScope = DictionarySearchScope.ALL
+        var openedWordId: String? = null
+        var clickedRelatedTerm: String? = null
+
+        composeRule.setContent {
+            var currentWordId by remember { mutableStateOf<String?>(null) }
+            FrancaisProTheme(darkTheme = false) {
+                if (currentWordId == null) {
+                    DictionaryScreen(
+                        uiState = DictionaryUiState(
+                            query = "",
+                            selectedCategory = "Tous",
+                            selectedScope = selectedScope,
+                            results = entries,
+                            categories = listOf("Tous", "Nom", "Verbe"),
+                            totalCount = 48
+                        ),
+                        favorites = emptyList(),
+                        onQueryChange = {},
+                        onCategorySelected = {},
+                        onScopeSelected = { selectedScope = it },
+                        onToggleFavoritesOnly = {},
+                        onClearFilters = {},
+                        onOpenWord = {
+                            openedWordId = it
+                            currentWordId = it
+                        },
+                        onBack = {}
+                    )
+                } else {
+                    WordDetailScreen(
+                        entry = entries.first { it.id == currentWordId },
+                        favorites = emptyList(),
+                        onToggleFavorite = {},
+                        onSpeakWord = {},
+                        onRelatedWordClick = { clickedRelatedTerm = it },
+                        onBack = { currentWordId = null }
+                    )
+                }
+            }
+        }
+
+        // Vérifie les filtres Synonymes / Antonymes et l'ouverture d'une entrée
+        composeRule.onNodeWithTag("dict_scope_SYNONYMS").performClick()
+        assertEquals(DictionarySearchScope.SYNONYMS, selectedScope)
+        composeRule.onNodeWithTag("dict_item_dic_01").performClick()
+        composeRule.waitForIdle()
+        assertEquals("dic_01", openedWordId)
+
+        // Vérifie l'interactivité d'un synonyme dans WordDetailScreen
+        composeRule.onNodeWithTag("word_synonym_harmonie").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        assertEquals("harmonie", clickedRelatedTerm)
     }
 }

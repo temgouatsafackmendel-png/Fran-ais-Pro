@@ -37,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -75,6 +76,7 @@ import com.example.features.practice.SpeakingScreen
 import com.example.features.practice.VocabularyScreen
 import com.example.features.practice.WritingWorkshopScreen
 import com.example.features.profile.BackupScreen
+import com.example.features.profile.DemoAndGuideScreen
 import com.example.features.profile.ProfileScreen
 import com.example.features.profile.SettingsScreen
 import com.example.features.reference.ConjugationScreen
@@ -126,7 +128,7 @@ fun FrancaisProApp(container: AppContainer) {
         val exercises by mainViewModel.exercises.collectAsStateWithLifecycle()
         val exerciseAttempts by mainViewModel.exerciseAttempts.collectAsStateWithLifecycle()
         val dictEntries by mainViewModel.dictionaryEntries.collectAsStateWithLifecycle()
-        val recentDictEntries by mainViewModel.recentDictionaryEntries.collectAsStateWithLifecycle()
+        val dictionaryUiState by mainViewModel.dictionaryUiState.collectAsStateWithLifecycle()
         val verbs by mainViewModel.verbs.collectAsStateWithLifecycle()
         val selectedVerbTable by mainViewModel.selectedVerbTable.collectAsStateWithLifecycle()
         val identifiedForms by mainViewModel.identifiedForms.collectAsStateWithLifecycle()
@@ -428,27 +430,48 @@ fun FrancaisProApp(container: AppContainer) {
                             )
                         }
 
-                        // 11. Dictionnaire
+                        // 11. Dictionnaire (Room SQLite 100 % hors ligne)
                         composable(Routes.DICTIONARY) {
                             DictionaryScreen(
-                                entries = dictEntries,
-                                recentEntries = recentDictEntries,
+                                uiState = dictionaryUiState,
                                 favorites = favorites,
+                                onQueryChange = mainViewModel::updateDictionaryQuery,
+                                onCategorySelected = mainViewModel::selectDictionaryCategory,
+                                onScopeSelected = mainViewModel::selectDictionaryScope,
+                                onToggleFavoritesOnly = mainViewModel::toggleDictionaryFavoritesOnly,
+                                onClearFilters = mainViewModel::clearDictionaryFilters,
                                 onOpenWord = { id ->
                                     mainViewModel.markDictionaryWordViewed(id)
                                     navController.navigate(Routes.wordDetail(id))
+                                },
+                                onAddCustomWord = { word, pos, def, syn, ant, ex, lvl ->
+                                    mainViewModel.addCustomDictionaryWord(
+                                        word = word,
+                                        partOfSpeech = pos,
+                                        definition = def,
+                                        synonymsCsv = syn,
+                                        antonymsCsv = ant,
+                                        example = ex,
+                                        level = lvl
+                                    ) { newId ->
+                                        navController.navigate(Routes.wordDetail(newId))
+                                    }
                                 },
                                 onBack = { navController.popBackStack() }
                             )
                         }
 
-                        // 12. Fiche de mot
+                        // 12. Fiche de mot (observée réactivement via Room)
                         composable(
                             route = Routes.WORD_DETAIL,
                             arguments = listOf(navArgument("wordId") { type = NavType.StringType })
                         ) { entry ->
                             val wordId = entry.arguments?.getString("wordId") ?: ""
-                            val word = dictEntries.firstOrNull { it.id == wordId }
+                            val initialWord = remember(wordId, dictEntries) {
+                                dictEntries.firstOrNull { it.id == wordId }
+                            }
+                            val wordFlow = remember(wordId) { mainViewModel.observeDictionaryEntry(wordId) }
+                            val word by wordFlow.collectAsStateWithLifecycle(initialValue = initialWord)
                             WordDetailScreen(
                                 entry = word,
                                 favorites = favorites,
@@ -456,6 +479,23 @@ fun FrancaisProApp(container: AppContainer) {
                                     mainViewModel.toggleFavorite("WORD", w.id, w.word, w.definition)
                                 },
                                 onSpeakWord = { w -> container.speechManager.speak(w, prefs.ttsSpeechRate) },
+                                onRelatedWordClick = { term ->
+                                    mainViewModel.resolveRelatedDictionaryWord(
+                                        term = term,
+                                        onFoundEntryId = { foundId ->
+                                            navController.navigate(Routes.wordDetail(foundId))
+                                        },
+                                        onFallbackSearch = {
+                                            val popped = navController.popBackStack(Routes.DICTIONARY, inclusive = false)
+                                            if (!popped) navController.navigate(Routes.DICTIONARY)
+                                        }
+                                    )
+                                },
+                                onDeleteCustomEntry = { id ->
+                                    mainViewModel.deleteCustomDictionaryWord(id) {
+                                        navController.popBackStack()
+                                    }
+                                },
                                 onBack = { navController.popBackStack() }
                             )
                         }
@@ -612,6 +652,21 @@ fun FrancaisProApp(container: AppContainer) {
                                 onToggleIncludeHistory = mainViewModel::setIncludeHistoryInBackup,
                                 onPrepareExport = mainViewModel::prepareBackupExport,
                                 onImportJson = mainViewModel::importBackupJson,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // 25. Démo interactive & Guide d'utilisation
+                        composable(Routes.USER_GUIDE) {
+                            DemoAndGuideScreen(
+                                correctionEngine = container.correctionEngine,
+                                onOpenInCorrector = { text ->
+                                    correctorViewModel.loadSample(text)
+                                    navigateToTab(Routes.CORRECTOR)
+                                },
+                                onNavigateToTab = { tabRoute ->
+                                    navigateToTab(tabRoute)
+                                },
                                 onBack = { navController.popBackStack() }
                             )
                         }

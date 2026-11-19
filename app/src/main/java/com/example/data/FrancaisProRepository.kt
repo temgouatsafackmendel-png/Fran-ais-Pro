@@ -18,6 +18,7 @@ import com.example.core.database.FrancaisProDatabase
 import com.example.core.database.LearningStatistics
 import com.example.core.database.Lesson
 import com.example.core.database.LessonProgress
+import com.example.core.database.RecentDictionarySearch
 import com.example.core.database.UserProfile
 import com.example.core.database.Verb
 import com.example.core.database.VocabularyProgress
@@ -54,6 +55,8 @@ class FrancaisProRepository(
     val exerciseAttempts: Flow<List<ExerciseAttempt>> = db.exerciseDao().observeAttempts()
     val allDictionaryEntries: Flow<List<DictionaryEntry>> = db.dictionaryDao().observeAllEntries()
     val recentDictionaryEntries: Flow<List<DictionaryEntry>> = db.dictionaryDao().observeRecentEntries()
+    val recentDictionarySearches: Flow<List<RecentDictionarySearch>> =
+        db.dictionaryDao().observeRecentSearches(MAX_RECENT_SEARCHES)
     val dictionaryCategories: Flow<List<String>> = db.dictionaryDao().observeCategories()
     val dictionaryTotalCount: Flow<Int> = db.dictionaryDao().observeTotalCount()
     val allVerbs: Flow<List<Verb>> = db.conjugationDao().observeAllVerbs()
@@ -310,6 +313,38 @@ class FrancaisProRepository(
         if (id.startsWith("custom_")) {
             db.dictionaryDao().deleteEntryById(id)
         }
+    }
+
+    suspend fun recordDictionarySearch(
+        query: String,
+        timestamp: Long = System.currentTimeMillis()
+    ) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+        val normalized = FrenchNormalizer.stripAccents(trimmed)
+        if (normalized.isEmpty()) return
+        db.withTransaction {
+            db.dictionaryDao().upsertRecentSearch(
+                RecentDictionarySearch(
+                    normalizedQuery = normalized,
+                    queryText = trimmed,
+                    searchedAt = timestamp
+                )
+            )
+            db.dictionaryDao().trimRecentSearches(MAX_RECENT_SEARCHES)
+        }
+    }
+
+    suspend fun removeRecentDictionarySearch(normalizedQuery: String) {
+        db.dictionaryDao().deleteRecentSearch(normalizedQuery)
+    }
+
+    suspend fun clearRecentDictionarySearches() {
+        db.dictionaryDao().clearRecentSearches()
+    }
+
+    companion object {
+        const val MAX_RECENT_SEARCHES = 10
     }
 
     // --- Conjugueur local ---

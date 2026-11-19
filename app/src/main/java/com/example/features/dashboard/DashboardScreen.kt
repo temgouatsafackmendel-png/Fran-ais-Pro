@@ -22,7 +22,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
@@ -52,12 +56,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.core.database.DailyGoal
+import com.example.core.database.DictionaryEntry
 import com.example.core.database.ExerciseAttempt
 import com.example.core.database.Lesson
 import com.example.core.database.LessonProgress
 import com.example.core.database.UserProfile
 import com.example.core.design.AppIconButton
 import com.example.core.design.CategoryBadge
+import com.example.core.design.CefrLevelPill
 import com.example.core.design.EditorialCard
 import com.example.core.design.LessonCard
 import com.example.core.design.ProgressCard
@@ -67,6 +73,7 @@ import com.example.core.design.UserInitialsAvatar
 import com.example.learning.progression.LinguisticProfileSummary
 import com.example.navigation.Routes
 import com.example.ui.theme.FrancaisProDimens
+import com.example.ui.theme.FrancaisProTextStyles
 import com.example.ui.theme.LocalSemanticColors
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -85,7 +92,9 @@ fun DashboardScreen(
     dailyGoals: List<DailyGoal>,
     dailyTargetMinutes: Int,
     onNavigate: (String) -> Unit,
-    onStartCategoryTraining: (String) -> Unit
+    onStartCategoryTraining: (String) -> Unit,
+    wordOfTheDay: DictionaryEntry? = null,
+    onSpeakWord: (String) -> Unit = {}
 ) {
     val semantic = LocalSemanticColors.current
     val todayEpoch = System.currentTimeMillis() / 86_400_000L
@@ -184,6 +193,18 @@ fun DashboardScreen(
                         }
                     }
                 )
+            }
+
+            // 2b. Mot du jour (alimenté par la base locale Room)
+            if (wordOfTheDay != null) {
+                item(key = "word_of_the_day") {
+                    WordOfTheDayCard(
+                        entry = wordOfTheDay,
+                        onOpenWord = { onNavigate(Routes.wordDetail(wordOfTheDay.id)) },
+                        onOpenDictionary = { onNavigate(Routes.DICTIONARY) },
+                        onSpeakWord = { onSpeakWord(wordOfTheDay.word) }
+                    )
+                }
             }
 
             // 3. Votre entraînement du jour (4 domaines clés en 2x2)
@@ -350,6 +371,7 @@ fun DashboardScreen(
                     SectionHeader(title = "Ateliers & outils")
                     val tools = listOf(
                         Triple("Dictionnaire", Icons.AutoMirrored.Filled.MenuBook, Routes.DICTIONARY),
+                        Triple("Démo & Guide", Icons.Filled.PlayArrow, Routes.USER_GUIDE),
                         Triple("Dictées", Icons.Filled.Mic, Routes.DICTATION),
                         Triple("Rédaction", Icons.Filled.EditNote, Routes.WRITING),
                         Triple("Expression orale", Icons.Filled.RecordVoiceOver, Routes.SPEAKING),
@@ -428,6 +450,128 @@ private fun TrainingDomainCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+private fun WordOfTheDayCard(
+    entry: DictionaryEntry,
+    onOpenWord: () -> Unit,
+    onOpenDictionary: () -> Unit,
+    onSpeakWord: () -> Unit
+) {
+    val semantic = LocalSemanticColors.current
+    val firstSynonym = remember(entry.synonymsPipe) {
+        entry.synonymsPipe.split("|").map { it.trim() }.firstOrNull { it.isNotEmpty() }
+    }
+    val firstAntonym = remember(entry.antonymsPipe) {
+        entry.antonymsPipe.split("|").map { it.trim() }.firstOrNull { it.isNotEmpty() }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionHeader(
+            title = "Mot du jour",
+            actionText = "Dictionnaire",
+            onAction = onOpenDictionary
+        )
+        EditorialCard(
+            onClick = onOpenWord,
+            contentPadding = 16.dp,
+            modifier = Modifier.testTag("dash_word_of_the_day_card")
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = entry.word,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = entry.pronunciation,
+                        style = FrancaisProTextStyles.MonoMetric,
+                        color = semantic.textSecondary,
+                        maxLines = 1
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CefrLevelPill(level = entry.level)
+                    AppIconButton(
+                        icon = Icons.AutoMirrored.Filled.VolumeUp,
+                        contentDescription = "Écouter ${entry.word}",
+                        onClick = onSpeakWord,
+                        containerColor = semantic.surfaceSubtle,
+                        modifier = Modifier.testTag("dash_wotd_speak_btn")
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = entry.definition,
+                style = MaterialTheme.typography.bodyMedium,
+                color = semantic.textSecondary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (firstSynonym != null) {
+                        CategoryBadge(
+                            label = "≈ $firstSynonym",
+                            color = semantic.success,
+                            containerColor = semantic.successContainer
+                        )
+                    }
+                    if (firstAntonym != null) {
+                        CategoryBadge(
+                            label = "≠ $firstAntonym",
+                            color = semantic.danger,
+                            containerColor = semantic.dangerContainer
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Fiche complète",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
     }
 }
 

@@ -288,23 +288,37 @@ fun FrancaisProApp(container: AppContainer) {
                                 modifier = Modifier.fillMaxSize()
                             ) { activeTab ->
                                 when (activeTab) {
-                                    Routes.DASHBOARD -> DashboardScreen(
-                                        profile = profile,
-                                        adaptiveSummary = adaptiveSummary,
-                                        lessons = lessons,
-                                        lessonProgress = lessonProgress,
-                                        exerciseAttempts = exerciseAttempts,
-                                        dailyGoals = dailyGoals,
-                                        dailyTargetMinutes = prefs.dailyGoalMinutes,
-                                        onNavigate = { target ->
-                                            if (target in Routes.topLevelTabs) navigateToTab(target)
-                                            else navController.navigate(target)
-                                        },
-                                        onStartCategoryTraining = { category ->
-                                            mainViewModel.setExerciseCategoryFilter(category)
-                                            navigateToTab(Routes.EXERCISES)
+                                    Routes.DASHBOARD -> {
+                                        val wordOfTheDay = remember(dictEntries) {
+                                            if (dictEntries.isEmpty()) null
+                                            else {
+                                                val epochDay = System.currentTimeMillis() / 86_400_000L
+                                                dictEntries[(epochDay % dictEntries.size).toInt()]
+                                            }
                                         }
-                                    )
+                                        DashboardScreen(
+                                            profile = profile,
+                                            adaptiveSummary = adaptiveSummary,
+                                            lessons = lessons,
+                                            lessonProgress = lessonProgress,
+                                            exerciseAttempts = exerciseAttempts,
+                                            dailyGoals = dailyGoals,
+                                            dailyTargetMinutes = prefs.dailyGoalMinutes,
+                                            onNavigate = { target ->
+                                                if (target.startsWith("word_detail/")) {
+                                                    mainViewModel.markDictionaryWordViewed(target.removePrefix("word_detail/"))
+                                                }
+                                                if (target in Routes.topLevelTabs) navigateToTab(target)
+                                                else navController.navigate(target)
+                                            },
+                                            onStartCategoryTraining = { category ->
+                                                mainViewModel.setExerciseCategoryFilter(category)
+                                                navigateToTab(Routes.EXERCISES)
+                                            },
+                                            wordOfTheDay = wordOfTheDay,
+                                            onSpeakWord = { w -> container.speechManager.speak(w, prefs.ttsSpeechRate) }
+                                        )
+                                    }
 
                                     Routes.CORRECTOR -> CorrectorScreen(
                                         uiState = correctorState,

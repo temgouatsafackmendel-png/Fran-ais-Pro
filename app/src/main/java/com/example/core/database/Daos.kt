@@ -208,6 +208,34 @@ interface DictionaryDao {
 
     @Query("SELECT COUNT(*) FROM dictionary_entries")
     suspend fun countEntries(): Int
+
+    // --- Historique des 10 dernières recherches du dictionnaire ---
+    @Query("SELECT * FROM recent_dictionary_searches ORDER BY searchedAt DESC LIMIT :limit")
+    fun observeRecentSearches(limit: Int = 10): Flow<List<RecentDictionarySearch>>
+
+    @Query("SELECT * FROM recent_dictionary_searches ORDER BY searchedAt DESC")
+    suspend fun getRecentSearchesSnapshot(): List<RecentDictionarySearch>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertRecentSearch(search: RecentDictionarySearch)
+
+    @Query(
+        """
+        DELETE FROM recent_dictionary_searches
+        WHERE normalizedQuery NOT IN (
+            SELECT normalizedQuery FROM recent_dictionary_searches
+            ORDER BY searchedAt DESC
+            LIMIT :keepCount
+        )
+        """
+    )
+    suspend fun trimRecentSearches(keepCount: Int = 10)
+
+    @Query("DELETE FROM recent_dictionary_searches WHERE normalizedQuery = :normalizedQuery")
+    suspend fun deleteRecentSearch(normalizedQuery: String)
+
+    @Query("DELETE FROM recent_dictionary_searches")
+    suspend fun clearRecentSearches()
 }
 
 @Dao

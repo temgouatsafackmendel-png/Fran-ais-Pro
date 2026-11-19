@@ -17,6 +17,7 @@ import com.example.core.database.Favorite
 import com.example.core.database.LearningStatistics
 import com.example.core.database.Lesson
 import com.example.core.database.LessonProgress
+import com.example.core.database.RecentDictionarySearch
 import com.example.core.database.UserProfile
 import com.example.core.database.Verb
 import com.example.core.database.VocabularyProgress
@@ -57,6 +58,7 @@ data class DictionaryUiState(
     val favoritesOnly: Boolean = false,
     val results: List<DictionaryEntry> = emptyList(),
     val fuzzySuggestions: List<DictionaryEntry> = emptyList(),
+    val recentSearches: List<RecentDictionarySearch> = emptyList(),
     val recentEntries: List<DictionaryEntry> = emptyList(),
     val categories: List<String> = listOf("Tous"),
     val totalCount: Int = 0
@@ -179,6 +181,7 @@ class MainAppViewModel(
     val dictionaryUiState: StateFlow<DictionaryUiState> = combine(
         dictionaryFilters,
         dictionaryQueryMatches,
+        repository.recentDictionarySearches,
         repository.recentDictionaryEntries,
         repository.dictionaryCategories,
         repository.dictionaryTotalCount,
@@ -189,12 +192,14 @@ class MainAppViewModel(
         @Suppress("UNCHECKED_CAST")
         val matchesPair = values[1] as Pair<List<DictionaryEntry>, List<DictionaryEntry>>
         @Suppress("UNCHECKED_CAST")
-        val recents = values[2] as List<DictionaryEntry>
+        val recentSearches = values[2] as List<RecentDictionarySearch>
         @Suppress("UNCHECKED_CAST")
-        val dbCategories = values[3] as List<String>
-        val totalCount = values[4] as Int
+        val recents = values[3] as List<DictionaryEntry>
         @Suppress("UNCHECKED_CAST")
-        val favs = values[5] as List<Favorite>
+        val dbCategories = values[4] as List<String>
+        val totalCount = values[5] as Int
+        @Suppress("UNCHECKED_CAST")
+        val favs = values[6] as List<Favorite>
 
         val favWordIds = favs.filter { it.itemType == "WORD" }.map { it.itemId }.toSet()
         val finalResults = if (params.favoritesOnly) {
@@ -210,6 +215,7 @@ class MainAppViewModel(
             favoritesOnly = params.favoritesOnly,
             results = finalResults,
             fuzzySuggestions = matchesPair.second,
+            recentSearches = recentSearches,
             recentEntries = recents,
             categories = listOf("Tous") + dbCategories,
             totalCount = totalCount
@@ -314,12 +320,33 @@ class MainAppViewModel(
         viewModelScope.launch { repository.getDictionaryEntry(id) }
     }
 
+    fun recordDictionarySearch(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch { repository.recordDictionarySearch(trimmed) }
+    }
+
+    fun selectRecentDictionarySearch(search: RecentDictionarySearch) {
+        _dictionaryQuery.value = search.queryText
+        _dictionaryFavoritesOnly.value = false
+        viewModelScope.launch { repository.recordDictionarySearch(search.queryText) }
+    }
+
+    fun removeRecentDictionarySearch(normalizedQuery: String) {
+        viewModelScope.launch { repository.removeRecentDictionarySearch(normalizedQuery) }
+    }
+
+    fun clearRecentDictionarySearches() {
+        viewModelScope.launch { repository.clearRecentDictionarySearches() }
+    }
+
     fun resolveRelatedDictionaryWord(
         term: String,
         onFoundEntryId: (String) -> Unit,
         onFallbackSearch: (String) -> Unit
     ) {
         viewModelScope.launch {
+            repository.recordDictionarySearch(term)
             val found = repository.findDictionaryEntryByWord(term)
             if (found != null) {
                 repository.getDictionaryEntry(found.id)

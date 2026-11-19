@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.BuildConfig
 import com.example.core.database.Achievement
 import com.example.core.database.UserProfile
 import com.example.core.datastore.LocalUserPreferences
@@ -268,6 +269,43 @@ fun ProfileScreen(
                         .fillMaxWidth()
                         .testTag("profile_retake_assessment_btn")
                 )
+            }
+
+            // Encart Version & Nouveautés (v1.1.0)
+            item {
+                EditorialCard(
+                    contentPadding = 16.dp,
+                    modifier = Modifier.testTag("profile_release_card")
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "FRANÇAIS PRO v${BuildConfig.VERSION_NAME}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        CategoryBadge(
+                            label = "Mise à jour",
+                            color = MaterialTheme.colorScheme.primary,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "Nouveautés : Mot du jour sur l'Accueil, Dictionnaire Room enrichi (48 entrées, recherche synonymes/antonymes & mots personnels), graphiques statistiques interactifs, transitions fluides 200 ms et écran Démo & Guide.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = semantic.textSecondary
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Réalisé par Temgoua Mendel · 100 % hors ligne",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = semantic.textSecondary
+                    )
+                }
             }
         }
     }

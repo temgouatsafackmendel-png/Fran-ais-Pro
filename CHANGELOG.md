@@ -2,6 +2,24 @@
 
 Toutes les évolutions notables de **FRANÇAIS PRO** sont documentées dans ce fichier selon le format [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la gestion sémantique de version ([SemVer](https://semver.org/lang/fr/)).
 
+## [1.1.0] — Mise à jour majeure hors ligne
+
+### Ajouté
+- **Mot du jour sur l'Accueil** : carte interactive alimentée par la base locale Room (prononciation IPA, niveau CECRL, définition, aperçu synonyme/antonyme, écoute audio locale TTS et accès direct à la fiche complète).
+- **Dictionnaire local Room enrichi (48 entrées A1–C2)** :
+  - Recherche SQLite instantanée avec tri par pertinence sur les mots (insensible aux accents), définitions, synonymes et antonymes.
+  - Filtres de portée dédiés (*Tout*, *Définitions*, *Synonymes*, *Antonymes*, *Favoris*) et catégories grammaticales issues directement de Room.
+  - Suggestions floues hors ligne (*« Vous vouliez peut-être dire… »*) en cas de faute de frappe.
+  - Puces interactives de synonymes et d'antonymes dans la fiche de mot (navigation directe vers l'entrée liée dans Room ou recherche instantanée).
+  - Ajout et suppression de mots personnels hors ligne persistés dans SQLite.
+- **Écran intégré Démo & Guide d'utilisation** (`Profil → Démo & Guide` et raccourci Accueil) : bac à sable en direct relié au moteur linguistique hors ligne + manuel interactif en 6 sections filtrables, complété par `docs/DEMO.md` et `docs/USER_GUIDE.md`.
+- **Statistiques visuelles interactives** : graphiques natifs Compose Canvas (barres hebdomadaires avec ligne d'objectif et infobulle au toucher, anneau interactif de répartition des erreurs, courbe d'évolution lissée).
+- **Transitions de navigation 200 ms** : animations `AnimatedContent` fluides entre les 5 destinations principales (*Accueil*, *Corriger*, *Apprendre*, *Exercices*, *Profil*) respectant la préférence de réduction de mouvement.
+- **Encart Version & Nouveautés dans le Profil** : affichage dynamique de `v1.1.0` et du crédit d'auteur (*Temgoua Mendel*).
+
+### Amélioré
+- Suite de tests étendue à **28 tests unitaires et UI Robolectric** (incluant les tests Room en mémoire pour le dictionnaire et les tests UI des nouveaux écrans).
+
 ## [1.0.0] — Version initiale complète
 
 ### Ajouté

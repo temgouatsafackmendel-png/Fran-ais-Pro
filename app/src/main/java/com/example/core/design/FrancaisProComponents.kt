@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -66,6 +68,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -186,31 +189,20 @@ fun AppIconButton(
     containerColor: Color = Color.Transparent
 ) {
     val semantic = LocalSemanticColors.current
-    val resolvedBg = if (containerColor == Color.Transparent) Color.Transparent else containerColor
-    Box(
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .size(FrancaisProDimens.MinTouchTarget)
             .clip(RoundedCornerShape(FrancaisProDimens.RadiusSmall))
-            .background(resolvedBg)
-            .let { mod ->
-                if (containerColor != Color.Transparent) {
-                    mod
-                } else mod
-            },
-        contentAlignment = Alignment.Center
+            .background(containerColor)
     ) {
-        IconButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = Modifier.size(FrancaisProDimens.MinTouchTarget)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = if (enabled) tint else semantic.textSecondary.copy(alpha = 0.45f),
-                modifier = Modifier.size(22.dp)
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) tint else semantic.textSecondary.copy(alpha = 0.45f),
+            modifier = Modifier.size(22.dp)
+        )
     }
 }
 
@@ -457,6 +449,7 @@ fun AppSearchBar(
     onQueryChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    onSearch: (() -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null
 ) {
     val semantic = LocalSemanticColors.current
@@ -496,6 +489,8 @@ fun AppSearchBar(
             }
         },
         singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
         shape = RoundedCornerShape(FrancaisProDimens.RadiusButton),
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surface,

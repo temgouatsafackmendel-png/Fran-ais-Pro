@@ -131,6 +131,17 @@ data class DictionaryEntry(
 
 @JsonClass(generateAdapter = true)
 @Entity(
+    tableName = "recent_dictionary_searches",
+    indices = [Index("searchedAt")]
+)
+data class RecentDictionarySearch(
+    @PrimaryKey val normalizedQuery: String,
+    val queryText: String,
+    val searchedAt: Long = System.currentTimeMillis()
+)
+
+@JsonClass(generateAdapter = true)
+@Entity(
     tableName = "verbs",
     indices = [Index("normalizedInfinitive")]
 )

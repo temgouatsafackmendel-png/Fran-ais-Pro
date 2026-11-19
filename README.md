@@ -8,6 +8,7 @@
 
 **Projet réalisé de bout en bout par Temgoua Mendel** — conception produit, Design System Material 3, moteur linguistique français embarqué, architecture Android, tests et packaging APK.
 
+[![Version](https://img.shields.io/badge/Version-1.1.0-356AE6?style=flat-square)](CHANGELOG.md)
 [![Plateforme](https://img.shields.io/badge/Plateforme-Android%207.0%2B%20(API%2024--36)-356AE6?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.21-7C3AED?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20%2B%20Material%203-101B36?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
@@ -56,13 +57,14 @@
 | **10 formats d'exercices** | QCM, texte à trous, correction de phrase, accords, conjugaison, homophones, ponctuation, ordre des mots, transformation de phrase et vocabulaire, avec écran de bilan et révision ciblée. |
 | **Dictées progressives** | Synthèse vocale locale (`TextToSpeech` `fr-FR`) avec repli visuel automatique si aucune voix française n'est installée, comparaison mot à mot et score de précision. |
 | **Conjugueur & Recherche inverse** | Conjugaison multi-temps/modes (indicatif, subjonctif, conditionnel, impératif, participe), mise en évidence des verbes irréguliers et identification d'une forme conjuguée. |
-| **Dictionnaire hors ligne** | Recherche instantanée avec définitions, nature grammaticale, synonymes, antonymes, exemples, favoris et historique de consultation. |
+| **Dictionnaire Room hors ligne** | 48 entrées A1–C2 indexées dans SQLite : recherche instantanée par mot (sans accents), définitions, synonymes et antonymes, suggestions floues, liens cliquables entre synonymes/antonymes, ajout de mots personnels, favoris et **Mot du jour** sur l'Accueil. |
 | **Vocabulaire intelligent (SM-2)** | Cartes mémoire à répétition espacée (algorithme SM-2), ajout de mots personnels et file de révision quotidienne. |
 | **Atelier de rédaction** | 10 modèles guidés (e-mail professionnel, lettre de motivation, résumé, dissertation, rapport, etc.) reliés au correcteur intégré et sauvegardés en local. |
 | **Expression orale** | Lecture à haute voix guidée, entraînement à l'articulation, virelangues, liaison et écoute modèle via TTS local. |
-| **Statistiques & Progression** | 4 graphiques natifs Canvas alimentés par Room (évolution de la précision, maîtrise par compétence, activité hebdomadaire, erreurs fréquentes), série quotidienne et objectifs réalistes. |
+| **Statistiques & Progression** | 4 graphiques natifs Canvas interactifs alimentés par Room (activité hebdomadaire avec infobulles, anneau de répartition des erreurs, courbe d'évolution, maîtrise par compétence), série quotidienne et objectifs réalistes. |
+| **Démo & Guide intégrés** | Écran dédié (bac à sable en direct du correcteur + manuel filtrable en 6 chapitres) accessible depuis l'Accueil et le Profil. |
 | **Sauvegarde & Restauration** | Export et import complets en JSON via `ActivityResultContracts.CreateDocument` / `OpenDocument` (aucune permission stockage requise). |
-| **Design System & Accessibilité** | Thèmes Clair / Sombre / Système, taille de police ajustable, mode dyslexie, cibles tactiles ≥ 48 dp et compatibilité `enableEdgeToEdge()`. |
+| **Design System & Accessibilité** | Thèmes Clair / Sombre / Système, transitions fluides `AnimatedContent` (200 ms), taille de police ajustable, mode dyslexie, cibles tactiles ≥ 48 dp et compatibilité `enableEdgeToEdge()`. |
 
 ---
 
@@ -133,7 +135,7 @@ Un fichier **APK prêt à installer** est disponible directement dans le dépôt
 ### Commandes principales
 
 ```bash
-# 1. Exécuter les 18 tests unitaires et Robolectric (JVM, sans émulateur)
+# 1. Exécuter les 28 tests unitaires et Robolectric (JVM, sans émulateur)
 gradle :app:testDebugUnitTest
 
 # 2. Vérifier l'analyse statique Android Lint

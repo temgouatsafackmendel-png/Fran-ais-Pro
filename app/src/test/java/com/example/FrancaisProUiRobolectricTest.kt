@@ -496,4 +496,40 @@ class FrancaisProUiRobolectricTest {
         composeRule.waitForIdle()
         assertEquals("harmonie", clickedRelatedTerm)
     }
+
+    @Test
+    fun `dashboard displays word of the day card with audio and detail navigation`() {
+        val sampleWord = DictionarySeed.entries().first()
+        var navigatedRoute: String? = null
+        var spokenWord: String? = null
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                DashboardScreen(
+                    profile = UserProfile(displayName = "Mendel", estimatedLevel = "B1", globalScore = 76),
+                    adaptiveSummary = AdaptiveProgressionEngine.computeProfileSummary("B1", 4, emptyList()),
+                    lessons = AcademyLessonsSeed.lessons().take(2),
+                    lessonProgress = emptyList(),
+                    exerciseAttempts = emptyList(),
+                    dailyGoals = emptyList(),
+                    dailyTargetMinutes = 15,
+                    onNavigate = { navigatedRoute = it },
+                    onStartCategoryTraining = {},
+                    wordOfTheDay = sampleWord,
+                    onSpeakWord = { spokenWord = it }
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("dashboard_list")
+            .performScrollToNode(hasTestTag("dash_word_of_the_day_card"))
+        composeRule.onNodeWithText("Mot du jour").assertIsDisplayed()
+        composeRule.onNodeWithTag("dash_wotd_speak_btn").performClick()
+        composeRule.waitForIdle()
+        assertEquals(sampleWord.word, spokenWord)
+
+        composeRule.onNodeWithTag("dash_word_of_the_day_card").performClick()
+        composeRule.waitForIdle()
+        assertEquals(Routes.wordDetail(sampleWord.id), navigatedRoute)
+    }
 }

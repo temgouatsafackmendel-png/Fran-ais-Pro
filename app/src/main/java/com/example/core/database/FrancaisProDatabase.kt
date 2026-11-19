@@ -15,6 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         Exercise::class,
         ExerciseAttempt::class,
         DictionaryEntry::class,
+        RecentDictionarySearch::class,
         Verb::class,
         Conjugation::class,
         CorrectionHistory::class,
@@ -29,7 +30,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         Favorite::class,
         AppSettings::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class FrancaisProDatabase : RoomDatabase() {
@@ -47,13 +48,25 @@ abstract class FrancaisProDatabase : RoomDatabase() {
         const val DATABASE_NAME = "francais_pro.db"
 
         /**
-         * Socle de migrations explicites pour garantir la préservation des données
-         * locales lors des futures montées de schéma.
+         * Migrations explicites pour garantir la préservation complète des données
+         * locales lors des montées de schéma.
          */
         val MIGRATIONS: Array<Migration> = arrayOf(
             object : Migration(1, 2) {
                 override fun migrate(db: SupportSQLiteDatabase) {
-                    // Réservé pour les futures évolutions de schéma (ex: colonnes additionnelles)
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS `recent_dictionary_searches` (
+                            `normalizedQuery` TEXT NOT NULL,
+                            `queryText` TEXT NOT NULL,
+                            `searchedAt` INTEGER NOT NULL,
+                            PRIMARY KEY(`normalizedQuery`)
+                        )
+                        """.trimIndent()
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_recent_dictionary_searches_searchedAt` ON `recent_dictionary_searches` (`searchedAt`)"
+                    )
                 }
             }
         )

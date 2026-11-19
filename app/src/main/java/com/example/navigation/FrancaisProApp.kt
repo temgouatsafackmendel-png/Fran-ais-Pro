@@ -1,8 +1,20 @@
 package com.example.navigation
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import com.example.navigation.NavigationMotion.enterTransition
+import com.example.navigation.NavigationMotion.exitTransition
+import com.example.navigation.NavigationMotion.popEnterTransition
+import com.example.navigation.NavigationMotion.popExitTransition
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -24,11 +36,13 @@ import androidx.compose.material.icons.outlined.Spellcheck
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -102,7 +116,8 @@ fun FrancaisProApp(container: AppContainer) {
         val backStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.route
         val reducedMotion = LocalReducedMotion.current
-        val navDuration = if (reducedMotion) 0 else 190
+        val barEnterMs = if (reducedMotion) 0 else NavigationMotion.TAB_BAR_ENTER_DURATION_MS
+        val barExitMs = if (reducedMotion) 0 else NavigationMotion.TAB_BAR_EXIT_DURATION_MS
 
         val profile by mainViewModel.userProfile.collectAsStateWithLifecycle()
         val adaptiveSummary by mainViewModel.adaptiveSummary.collectAsStateWithLifecycle()
@@ -134,15 +149,21 @@ fun FrancaisProApp(container: AppContainer) {
         val recognizedText by container.speechManager.recognizedText.collectAsStateWithLifecycle()
         val sttError by container.speechManager.sttError.collectAsStateWithLifecycle()
 
-        val showPrimaryNav = currentRoute in Routes.topLevelTabs
+        var selectedMainTab by rememberSaveable { mutableStateOf(Routes.DASHBOARD) }
+        val showPrimaryNav = currentRoute == Routes.MAIN_TABS
+        val activeNavRoute = if (showPrimaryNav) selectedMainTab else currentRoute
 
         fun navigateToTab(route: String) {
-            navController.navigate(route) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
+            val targetTab = if (route in Routes.topLevelTabs) route else Routes.DASHBOARD
+            if (currentRoute == Routes.MAIN_TABS && selectedMainTab == targetTab) return
+            selectedMainTab = targetTab
+            if (currentRoute != Routes.MAIN_TABS) {
+                val popped = navController.popBackStack(Routes.MAIN_TABS, inclusive = false)
+                if (!popped) {
+                    navController.navigate(Routes.MAIN_TABS) {
+                        launchSingleTop = true
+                    }
                 }
-                launchSingleTop = true
-                restoreState = true
             }
         }
 
@@ -150,10 +171,16 @@ fun FrancaisProApp(container: AppContainer) {
             val useNavigationRail = maxWidth >= 600.dp
 
             Row(modifier = Modifier.fillMaxSize()) {
-                if (showPrimaryNav && useNavigationRail) {
+                AnimatedVisibility(
+                    visible = showPrimaryNav && useNavigationRail,
+                    enter = fadeIn(tween(barEnterMs, easing = FastOutSlowInEasing)) +
+                        slideInHorizontally(tween(barEnterMs, easing = FastOutSlowInEasing)) { -it / 2 },
+                    exit = fadeOut(tween(barExitMs, easing = FastOutSlowInEasing)) +
+                        slideOutHorizontally(tween(barExitMs, easing = FastOutSlowInEasing)) { -it / 2 }
+                ) {
                     AppNavigationRail(
                         destinations = mainTabs,
-                        currentRoute = currentRoute,
+                        currentRoute = activeNavRoute,
                         onSelect = ::navigateToTab
                     )
                 }
@@ -162,10 +189,16 @@ fun FrancaisProApp(container: AppContainer) {
                     modifier = Modifier.fillMaxSize(),
                     contentWindowInsets = WindowInsets.safeDrawing,
                     bottomBar = {
-                        if (showPrimaryNav && !useNavigationRail) {
+                        AnimatedVisibility(
+                            visible = showPrimaryNav && !useNavigationRail,
+                            enter = fadeIn(tween(barEnterMs, easing = FastOutSlowInEasing)) +
+                                slideInVertically(tween(barEnterMs, easing = FastOutSlowInEasing)) { it / 2 },
+                            exit = fadeOut(tween(barExitMs, easing = FastOutSlowInEasing)) +
+                                slideOutVertically(tween(barExitMs, easing = FastOutSlowInEasing)) { it / 2 }
+                        ) {
                             AppBottomNavigation(
                                 destinations = mainTabs,
-                                currentRoute = currentRoute,
+                                currentRoute = activeNavRoute,
                                 onSelect = ::navigateToTab
                             )
                         }
@@ -174,10 +207,10 @@ fun FrancaisProApp(container: AppContainer) {
                     NavHost(
                         navController = navController,
                         startDestination = Routes.SPLASH,
-                        enterTransition = { fadeIn(animationSpec = tween(navDuration)) },
-                        exitTransition = { fadeOut(animationSpec = tween(navDuration)) },
-                        popEnterTransition = { fadeIn(animationSpec = tween(navDuration)) },
-                        popExitTransition = { fadeOut(animationSpec = tween(navDuration)) },
+                        enterTransition = { enterTransition(reducedMotion) },
+                        exitTransition = { exitTransition(reducedMotion) },
+                        popEnterTransition = { popEnterTransition(reducedMotion) },
+                        popExitTransition = { popExitTransition(reducedMotion) },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
@@ -192,7 +225,8 @@ fun FrancaisProApp(container: AppContainer) {
                                     }
                                 },
                                 onNavigateToDashboard = {
-                                    navController.navigate(Routes.DASHBOARD) {
+                                    selectedMainTab = Routes.DASHBOARD
+                                    navController.navigate(Routes.MAIN_TABS) {
                                         popUpTo(Routes.SPLASH) { inclusive = true }
                                     }
                                 }
@@ -204,13 +238,15 @@ fun FrancaisProApp(container: AppContainer) {
                             OnboardingScreen(
                                 onFinishOnboarding = { name, goalMins, correct, total ->
                                     mainViewModel.completeOnboardingWithGoal(name, goalMins, correct, total)
-                                    navController.navigate(Routes.DASHBOARD) {
+                                    selectedMainTab = Routes.DASHBOARD
+                                    navController.navigate(Routes.MAIN_TABS) {
                                         popUpTo(Routes.ONBOARDING) { inclusive = true }
                                     }
                                 },
                                 onSkipToDashboard = { name ->
                                     mainViewModel.completeOnboarding(name)
-                                    navController.navigate(Routes.DASHBOARD) {
+                                    selectedMainTab = Routes.DASHBOARD
+                                    navController.navigate(Routes.MAIN_TABS) {
                                         popUpTo(Routes.ONBOARDING) { inclusive = true }
                                     }
                                 }
@@ -222,7 +258,8 @@ fun FrancaisProApp(container: AppContainer) {
                             InitialAssessmentScreen(
                                 onFinished = { correct, total ->
                                     mainViewModel.completePlacement(correct, total)
-                                    navController.navigate(Routes.DASHBOARD) {
+                                    selectedMainTab = Routes.DASHBOARD
+                                    navController.navigate(Routes.MAIN_TABS) {
                                         popUpTo(0) { inclusive = true }
                                     }
                                 },
@@ -230,45 +267,93 @@ fun FrancaisProApp(container: AppContainer) {
                             )
                         }
 
-                        // 4. Accueil / Tableau de bord
-                        composable(Routes.DASHBOARD) {
-                            DashboardScreen(
-                                profile = profile,
-                                adaptiveSummary = adaptiveSummary,
-                                lessons = lessons,
-                                lessonProgress = lessonProgress,
-                                exerciseAttempts = exerciseAttempts,
-                                dailyGoals = dailyGoals,
-                                dailyTargetMinutes = prefs.dailyGoalMinutes,
-                                onNavigate = { target ->
-                                    if (target in Routes.topLevelTabs) navigateToTab(target)
-                                    else navController.navigate(target)
-                                },
-                                onStartCategoryTraining = { category ->
-                                    mainViewModel.setExerciseCategoryFilter(category)
-                                    navigateToTab(Routes.EXERCISES)
-                                }
-                            )
-                        }
+                        // 4. Conteneur animé des 5 destinations principales (AnimatedContent · 200 ms)
+                        composable(Routes.MAIN_TABS) {
+                            BackHandler(enabled = selectedMainTab != Routes.DASHBOARD) {
+                                selectedMainTab = Routes.DASHBOARD
+                            }
 
-                        // 5. Correcteur
-                        composable(Routes.CORRECTOR) {
-                            CorrectorScreen(
-                                uiState = correctorState,
-                                sampleTexts = correctorViewModel.sampleTexts,
-                                onTextChange = correctorViewModel::updateText,
-                                onAnalyze = { correctorViewModel.analyzeCurrentText() },
-                                onOpenResult = { navController.navigate(Routes.CORRECTION_RESULT) },
-                                onLoadSample = correctorViewModel::loadSample,
-                                onFixAll = correctorViewModel::applyAllSafeCorrections,
-                                onAcceptIssue = correctorViewModel::acceptIssue,
-                                onDismissIssue = correctorViewModel::dismissIssue,
-                                onUndo = correctorViewModel::undo,
-                                onRedo = correctorViewModel::redo,
-                                onClear = correctorViewModel::clearAll,
-                                onOpenHistory = { navController.navigate(Routes.HISTORY) },
-                                onOpenWritingWorkshop = { navController.navigate(Routes.WRITING) }
-                            )
+                            AnimatedContent(
+                                targetState = selectedMainTab,
+                                transitionSpec = {
+                                    NavigationMotion.mainDestinationContentTransform(
+                                        fromRoute = initialState,
+                                        toRoute = targetState,
+                                        reducedMotion = reducedMotion
+                                    )
+                                },
+                                label = "main_destinations_animated_content",
+                                modifier = Modifier.fillMaxSize()
+                            ) { activeTab ->
+                                when (activeTab) {
+                                    Routes.DASHBOARD -> DashboardScreen(
+                                        profile = profile,
+                                        adaptiveSummary = adaptiveSummary,
+                                        lessons = lessons,
+                                        lessonProgress = lessonProgress,
+                                        exerciseAttempts = exerciseAttempts,
+                                        dailyGoals = dailyGoals,
+                                        dailyTargetMinutes = prefs.dailyGoalMinutes,
+                                        onNavigate = { target ->
+                                            if (target in Routes.topLevelTabs) navigateToTab(target)
+                                            else navController.navigate(target)
+                                        },
+                                        onStartCategoryTraining = { category ->
+                                            mainViewModel.setExerciseCategoryFilter(category)
+                                            navigateToTab(Routes.EXERCISES)
+                                        }
+                                    )
+
+                                    Routes.CORRECTOR -> CorrectorScreen(
+                                        uiState = correctorState,
+                                        sampleTexts = correctorViewModel.sampleTexts,
+                                        onTextChange = correctorViewModel::updateText,
+                                        onAnalyze = { correctorViewModel.analyzeCurrentText() },
+                                        onOpenResult = { navController.navigate(Routes.CORRECTION_RESULT) },
+                                        onLoadSample = correctorViewModel::loadSample,
+                                        onFixAll = correctorViewModel::applyAllSafeCorrections,
+                                        onAcceptIssue = correctorViewModel::acceptIssue,
+                                        onDismissIssue = correctorViewModel::dismissIssue,
+                                        onUndo = correctorViewModel::undo,
+                                        onRedo = correctorViewModel::redo,
+                                        onClear = correctorViewModel::clearAll,
+                                        onOpenHistory = { navController.navigate(Routes.HISTORY) },
+                                        onOpenWritingWorkshop = { navController.navigate(Routes.WRITING) }
+                                    )
+
+                                    Routes.ACADEMY -> AcademyScreen(
+                                        lessons = lessons,
+                                        progress = lessonProgress,
+                                        onOpenLevelLessons = { lvl -> navController.navigate(Routes.lessonList(lvl)) },
+                                        onOpenDictionary = { navController.navigate(Routes.DICTIONARY) },
+                                        onOpenConjugation = { navController.navigate(Routes.CONJUGATION) },
+                                        onOpenVocabulary = { navController.navigate(Routes.VOCABULARY) }
+                                    )
+
+                                    Routes.EXERCISES -> ExercisesScreen(
+                                        profile = profile,
+                                        exercises = exercises,
+                                        exerciseAttempts = exerciseAttempts,
+                                        statistics = statistics,
+                                        initialCategoryFilter = exerciseCategoryFilter,
+                                        onClearInitialCategoryFilter = { mainViewModel.setExerciseCategoryFilter(null) },
+                                        onSubmitAnswer = mainViewModel::submitExercise,
+                                        onOpenDictation = { navController.navigate(Routes.DICTATION) },
+                                        onOpenSpeaking = { navController.navigate(Routes.SPEAKING) }
+                                    )
+
+                                    else -> ProfileScreen(
+                                        profile = profile,
+                                        adaptiveSummary = adaptiveSummary,
+                                        achievements = achievements,
+                                        onUpdateName = mainViewModel::updateDisplayName,
+                                        onNavigate = { target ->
+                                            if (target in Routes.topLevelTabs) navigateToTab(target)
+                                            else navController.navigate(target)
+                                        }
+                                    )
+                                }
+                            }
                         }
 
                         // 6. Résultat de correction
@@ -282,18 +367,6 @@ fun FrancaisProApp(container: AppContainer) {
                                 onUndo = correctorViewModel::undo,
                                 onRedo = correctorViewModel::redo,
                                 onBack = { navController.popBackStack() }
-                            )
-                        }
-
-                        // 7. Académie
-                        composable(Routes.ACADEMY) {
-                            AcademyScreen(
-                                lessons = lessons,
-                                progress = lessonProgress,
-                                onOpenLevelLessons = { lvl -> navController.navigate(Routes.lessonList(lvl)) },
-                                onOpenDictionary = { navController.navigate(Routes.DICTIONARY) },
-                                onOpenConjugation = { navController.navigate(Routes.CONJUGATION) },
-                                onOpenVocabulary = { navController.navigate(Routes.VOCABULARY) }
                             )
                         }
 
@@ -400,21 +473,6 @@ fun FrancaisProApp(container: AppContainer) {
                                     mainViewModel.toggleFavorite("VERB", tbl.infinitive, tbl.infinitive, "${tbl.groupNumber}e groupe · aux. ${tbl.auxiliary}")
                                 },
                                 onBack = { navController.popBackStack() }
-                            )
-                        }
-
-                        // Hub Exercices
-                        composable(Routes.EXERCISES) {
-                            ExercisesScreen(
-                                profile = profile,
-                                exercises = exercises,
-                                exerciseAttempts = exerciseAttempts,
-                                statistics = statistics,
-                                initialCategoryFilter = exerciseCategoryFilter,
-                                onClearInitialCategoryFilter = { mainViewModel.setExerciseCategoryFilter(null) },
-                                onSubmitAnswer = mainViewModel::submitExercise,
-                                onOpenDictation = { navController.navigate(Routes.DICTATION) },
-                                onOpenSpeaking = { navController.navigate(Routes.SPEAKING) }
                             )
                         }
 
@@ -530,17 +588,6 @@ fun FrancaisProApp(container: AppContainer) {
                                     mainViewModel.toggleFavorite(fav.itemType, fav.itemId, fav.title, fav.subtitle)
                                 },
                                 onBack = { navController.popBackStack() }
-                            )
-                        }
-
-                        // 22. Profil
-                        composable(Routes.PROFILE) {
-                            ProfileScreen(
-                                profile = profile,
-                                adaptiveSummary = adaptiveSummary,
-                                achievements = achievements,
-                                onUpdateName = mainViewModel::updateDisplayName,
-                                onNavigate = { navController.navigate(it) }
                             )
                         }
 

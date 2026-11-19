@@ -5,6 +5,9 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val ASSESSMENT = "assessment"
 
+    // Conteneur animé des 5 onglets principaux
+    const val MAIN_TABS = "main_tabs"
+
     // 5 onglets principaux
     const val DASHBOARD = "dashboard"
     const val CORRECTOR = "corrector"

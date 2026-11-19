@@ -1,6 +1,9 @@
 package com.example.core.design
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -55,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -64,6 +68,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.navigation.NavigationMotion
 import com.example.ui.theme.FrancaisProDimens
 import com.example.ui.theme.LocalReducedMotion
 import com.example.ui.theme.LocalSemanticColors
@@ -275,6 +280,9 @@ fun AppBottomNavigation(
 ) {
     val semantic = LocalSemanticColors.current
     val reducedMotion = LocalReducedMotion.current
+    val iconAnimDuration = if (reducedMotion) 0 else NavigationMotion.TAB_ICON_DURATION_MS
+    val scaleAnimDuration = if (reducedMotion) 0 else NavigationMotion.TAB_SCALE_DURATION_MS
+
     Column(modifier = Modifier.fillMaxWidth()) {
         HorizontalDivider(thickness = 1.dp, color = semantic.border)
         NavigationBar(
@@ -286,23 +294,45 @@ fun AppBottomNavigation(
                 val selected = currentRoute == dest.route
                 val iconTint by animateColorAsState(
                     targetValue = if (selected) MaterialTheme.colorScheme.primary else semantic.textSecondary,
-                    animationSpec = tween(if (reducedMotion) 0 else 180),
+                    animationSpec = tween(durationMillis = iconAnimDuration, easing = FastOutSlowInEasing),
                     label = "nav_tint_${dest.route}"
+                )
+                val labelColor by animateColorAsState(
+                    targetValue = if (selected) MaterialTheme.colorScheme.primary else semantic.textSecondary,
+                    animationSpec = tween(durationMillis = iconAnimDuration, easing = FastOutSlowInEasing),
+                    label = "nav_label_${dest.route}"
+                )
+                val iconScale by animateFloatAsState(
+                    targetValue = if (selected) 1.08f else 1.0f,
+                    animationSpec = tween(durationMillis = scaleAnimDuration, easing = FastOutSlowInEasing),
+                    label = "nav_scale_${dest.route}"
                 )
                 NavigationBarItem(
                     selected = selected,
                     onClick = { onSelect(dest.route) },
                     icon = {
-                        Icon(
-                            imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                            contentDescription = dest.label,
-                            tint = iconTint,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        Crossfade(
+                            targetState = selected,
+                            animationSpec = tween(durationMillis = iconAnimDuration, easing = FastOutSlowInEasing),
+                            label = "nav_icon_crossfade_${dest.route}"
+                        ) { isSelected ->
+                            Icon(
+                                imageVector = if (isSelected) dest.selectedIcon else dest.unselectedIcon,
+                                contentDescription = dest.label,
+                                tint = iconTint,
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .graphicsLayer {
+                                        scaleX = iconScale
+                                        scaleY = iconScale
+                                    }
+                            )
+                        }
                     },
                     label = {
                         Text(
                             text = dest.label,
+                            color = labelColor,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                             maxLines = 1,
@@ -333,22 +363,53 @@ fun AppNavigationRail(
     onSelect: (String) -> Unit
 ) {
     val semantic = LocalSemanticColors.current
+    val reducedMotion = LocalReducedMotion.current
+    val iconAnimDuration = if (reducedMotion) 0 else NavigationMotion.TAB_ICON_DURATION_MS
+    val scaleAnimDuration = if (reducedMotion) 0 else NavigationMotion.TAB_SCALE_DURATION_MS
+
     NavigationRail(
         containerColor = MaterialTheme.colorScheme.surface
     ) {
         Spacer(Modifier.height(12.dp))
         destinations.forEach { dest ->
             val selected = currentRoute == dest.route
+            val iconTint by animateColorAsState(
+                targetValue = if (selected) MaterialTheme.colorScheme.primary else semantic.textSecondary,
+                animationSpec = tween(durationMillis = iconAnimDuration, easing = FastOutSlowInEasing),
+                label = "rail_tint_${dest.route}"
+            )
+            val iconScale by animateFloatAsState(
+                targetValue = if (selected) 1.08f else 1.0f,
+                animationSpec = tween(durationMillis = scaleAnimDuration, easing = FastOutSlowInEasing),
+                label = "rail_scale_${dest.route}"
+            )
             NavigationRailItem(
                 selected = selected,
                 onClick = { onSelect(dest.route) },
                 icon = {
-                    Icon(
-                        imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                        contentDescription = dest.label
+                    Crossfade(
+                        targetState = selected,
+                        animationSpec = tween(durationMillis = iconAnimDuration, easing = FastOutSlowInEasing),
+                        label = "rail_icon_crossfade_${dest.route}"
+                    ) { isSelected ->
+                        Icon(
+                            imageVector = if (isSelected) dest.selectedIcon else dest.unselectedIcon,
+                            contentDescription = dest.label,
+                            tint = iconTint,
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                            }
+                        )
+                    }
+                },
+                label = {
+                    Text(
+                        text = dest.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
                     )
                 },
-                label = { Text(dest.label, style = MaterialTheme.typography.labelSmall) },
                 colors = NavigationRailItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,

@@ -34,6 +34,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -74,7 +75,7 @@ import com.example.ui.theme.LocalReducedMotion
 import com.example.ui.theme.LocalSemanticColors
 
 /**
- * 1. PrimaryButton — Action principale (rayon 14 dp, cible tactile ≥ 48 dp).
+ * 1. PrimaryButton — Action principale (rayon 14 dp, cible tactile ≥ 48 dp, état chargement optionnel).
  */
 @Composable
 fun PrimaryButton(
@@ -82,13 +83,15 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    isLoading: Boolean = false,
     icon: ImageVector? = null,
     containerColor: Color = MaterialTheme.colorScheme.primary,
     contentColor: Color = MaterialTheme.colorScheme.onPrimary
 ) {
+    val interactive = enabled && !isLoading
     Button(
         onClick = onClick,
-        enabled = enabled,
+        enabled = interactive,
         modifier = modifier.heightIn(min = 50.dp),
         shape = RoundedCornerShape(FrancaisProDimens.RadiusButton),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
@@ -100,7 +103,14 @@ fun PrimaryButton(
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp)
     ) {
-        if (icon != null) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                color = contentColor,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+        } else if (icon != null) {
             Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
         }
@@ -114,7 +124,7 @@ fun PrimaryButton(
 }
 
 /**
- * 2. SecondaryButton — Action secondaire sobre avec bordure fine (rayon 14 dp).
+ * 2. SecondaryButton — Action secondaire sobre avec bordure fine (rayon 14 dp, cible tactile ≥ 48 dp).
  */
 @Composable
 fun SecondaryButton(
@@ -122,23 +132,34 @@ fun SecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    isLoading: Boolean = false,
     icon: ImageVector? = null,
     contentColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     val semantic = LocalSemanticColors.current
+    val interactive = enabled && !isLoading
     OutlinedButton(
         onClick = onClick,
-        enabled = enabled,
+        enabled = interactive,
         modifier = modifier.heightIn(min = 48.dp),
         shape = RoundedCornerShape(FrancaisProDimens.RadiusButton),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        border = BorderStroke(1.dp, if (enabled) semantic.border else semantic.border.copy(alpha = 0.5f)),
+        border = BorderStroke(1.dp, if (interactive) semantic.border else semantic.border.copy(alpha = 0.5f)),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = contentColor
+            contentColor = contentColor,
+            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+            disabledContentColor = contentColor.copy(alpha = 0.45f)
         )
     ) {
-        if (icon != null) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                color = contentColor,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+        } else if (icon != null) {
             Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
         }
@@ -202,10 +223,12 @@ fun AppTopBar(
     title: String,
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    showDivider: Boolean = true,
     actions: @Composable () -> Unit = {}
 ) {
     val semantic = LocalSemanticColors.current
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         TopAppBar(
             title = {
                 Column {
@@ -249,7 +272,9 @@ fun AppTopBar(
                 titleContentColor = MaterialTheme.colorScheme.onBackground
             )
         )
-        HorizontalDivider(thickness = 1.dp, color = semantic.border.copy(alpha = 0.65f))
+        if (showDivider) {
+            HorizontalDivider(thickness = 1.dp, color = semantic.border.copy(alpha = 0.65f))
+        }
     }
 }
 

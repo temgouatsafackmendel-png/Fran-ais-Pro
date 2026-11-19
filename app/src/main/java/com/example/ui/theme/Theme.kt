@@ -10,6 +10,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
@@ -143,7 +144,7 @@ val LocalSemanticColors = staticCompositionLocalOf { LightSemanticColors }
  */
 val LocalReducedMotion = staticCompositionLocalOf { false }
 
-private val LightColorScheme = lightColorScheme(
+val FrancaisProLightColorScheme = lightColorScheme(
     primary = PrimaryBlue,
     onPrimary = SurfaceLight,
     primaryContainer = BlueContainerLight,
@@ -166,6 +167,7 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerLow = BackgroundLight,
     surfaceContainer = SurfaceSubtleLight,
     surfaceContainerHigh = BorderLight,
+    surfaceContainerHighest = BorderLight,
     outline = BorderLight,
     outlineVariant = BorderLight,
     error = ErrorLight,
@@ -174,7 +176,7 @@ private val LightColorScheme = lightColorScheme(
     onErrorContainer = OnErrorContainerLight
 )
 
-private val DarkColorScheme = darkColorScheme(
+val FrancaisProDarkColorScheme = darkColorScheme(
     primary = PrimaryBlueDark,
     onPrimary = BackgroundDark,
     primaryContainer = BlueContainerDark,
@@ -197,6 +199,7 @@ private val DarkColorScheme = darkColorScheme(
     surfaceContainerLow = SurfaceDark,
     surfaceContainer = ElevatedSurfaceDark,
     surfaceContainerHigh = BorderDark,
+    surfaceContainerHighest = BorderDark,
     outline = BorderDark,
     outlineVariant = BorderDark,
     error = ErrorDark,
@@ -204,6 +207,18 @@ private val DarkColorScheme = darkColorScheme(
     errorContainer = ErrorContainerDark,
     onErrorContainer = OnErrorContainerDark
 )
+
+/**
+ * Accesseur ergonomique aux tokens du Design System depuis n'importe quel Composable.
+ */
+object FrancaisProThemeTokens {
+    val colors: SemanticColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalSemanticColors.current
+
+    val dimens: FrancaisProDimens = FrancaisProDimens
+}
 
 /**
  * Rayons officiels :
@@ -229,7 +244,7 @@ fun FrancaisProTheme(
         }.getOrDefault(false)
     }
 
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = if (darkTheme) FrancaisProDarkColorScheme else FrancaisProLightColorScheme
     val semanticColors = if (darkTheme) DarkSemanticColors else LightSemanticColors
 
     CompositionLocalProvider(

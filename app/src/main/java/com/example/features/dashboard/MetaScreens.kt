@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,6 +50,7 @@ import com.example.core.design.ErrorCategoryBreakdownChart
 import com.example.core.design.ScoreEvolutionLineChart
 import com.example.core.design.SectionHeader
 import com.example.core.design.SkillBarChart
+import com.example.core.design.StatisticsCard
 import com.example.core.design.WeeklyMinutesBarChart
 import com.example.learning.progression.LinguisticProfileSummary
 import com.example.ui.theme.FrancaisProDimens
@@ -127,12 +130,39 @@ fun StatisticsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Résumé analytique rapide
+            item {
+                val weekTotal = weeklyDays.sumOf { it.second }
+                val totalErrors = errorBreakdown.sumOf { it.second }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatisticsCard(
+                        value = "$weekTotal min",
+                        label = "Cette semaine",
+                        icon = Icons.Filled.Schedule,
+                        accentColor = MaterialTheme.colorScheme.primary,
+                        accentContainer = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatisticsCard(
+                        value = "${adaptiveSummary.globalScore} / 100",
+                        label = "$totalErrors point(s) analysé(s)",
+                        icon = Icons.Filled.Assessment,
+                        accentColor = semantic.success,
+                        accentContainer = semantic.successContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
             // Graphique 1 : Progression hebdomadaire
             item {
                 EditorialCard {
                     Text("Progression hebdomadaire", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        "Minutes d'apprentissage par jour (objectif : $dailyTargetMinutes min)",
+                        "Minutes d'apprentissage sur 7 jours · touchez un jour pour le détail (objectif : $dailyTargetMinutes min)",
                         style = MaterialTheme.typography.bodySmall,
                         color = semantic.textSecondary
                     )
@@ -159,6 +189,11 @@ fun StatisticsScreen(
             item {
                 EditorialCard {
                     Text("Répartition des erreurs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Touchez une catégorie pour inspecter sa part exacte",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = semantic.textSecondary
+                    )
                     Spacer(Modifier.height(12.dp))
                     ErrorCategoryBreakdownChart(items = errorBreakdown)
                 }

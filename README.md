@@ -6,7 +6,7 @@
 
 *Application Android native 100 % hors ligne d'apprentissage, de correction linguistique et de maîtrise du français (CECRL A1 à C2).*
 
-**Projet réalisé de bout en bout par mes soins** — conception produit, Design System Material 3, moteur linguistique français embarqué, architecture Android, tests et packaging APK.
+**Projet réalisé de bout en bout par Temgoua Mendel** — conception produit, Design System Material 3, moteur linguistique français embarqué, architecture Android, tests et packaging APK.
 
 [![Plateforme](https://img.shields.io/badge/Plateforme-Android%207.0%2B%20(API%2024--36)-356AE6?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.21-7C3AED?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
@@ -104,19 +104,22 @@ Le projet suit les principes **MVVM**, **Clean Architecture** et séparation str
 
 ## 📦 Téléchargement et installation (APK)
 
-Les binaires **APK** prêts à installer sont distribués via l'onglet **[Releases](../../releases)** de GitHub (afin de garder le dépôt Git léger et rapide).
+Un fichier **APK prêt à installer** est disponible directement dans le dépôt :
+
+- **Télécharger l'APK** : [`releases/FrancaisPro-v1.0.0.apk`](releases/FrancaisPro-v1.0.0.apk) *(Android 7.0+ / API 24–36, 100 % hors ligne)*
+- **Empreinte de vérification** : [`releases/SHA256SUMS.txt`](releases/SHA256SUMS.txt)
 
 ### Installer sur un appareil Android
 
-1. Ouvrez la section **[Releases](../../releases)** du dépôt et téléchargez le fichier `FrancaisPro-v1.0.0-release.apk` (ou `FrancaisPro-v1.0.0-debug.apk` pour les tests).
-2. *(Recommandé)* Vérifiez l'intégrité du fichier avec `SHA256SUMS.txt` :
+1. Téléchargez [`releases/FrancaisPro-v1.0.0.apk`](releases/FrancaisPro-v1.0.0.apk) (ou depuis l'onglet **[Releases](../../releases)** de GitHub).
+2. *(Recommandé)* Vérifiez l'intégrité du fichier avec `releases/SHA256SUMS.txt` :
    ```bash
-   sha256sum -c SHA256SUMS.txt
+   (cd releases && sha256sum -c SHA256SUMS.txt)
    ```
 3. Transférez l'APK sur votre appareil Android et ouvrez-le pour l'installer (autorisez *« Installer des applications inconnues »* pour votre navigateur ou gestionnaire de fichiers si demandé).
 4. Profitez de l'application immédiatement, **même en mode avion**.
 
-> Vous maintenez ce dépôt ? Consultez [`docs/RELEASE_GUIDE.md`](docs/RELEASE_GUIDE.md) pour générer un APK/AAB signé ou publier automatiquement une release via un tag Git (`v1.0.0`).
+> Consultez [`docs/RELEASE_GUIDE.md`](docs/RELEASE_GUIDE.md) pour signer un APK/AAB de production ou automatiser de nouvelles releases GitHub via un tag Git.
 
 ---
 
@@ -168,12 +171,12 @@ gradle :app:bundleRelease
 
 ## 👤 À propos & Auteur
 
-**FRANÇAIS PRO** est un projet que j'ai **réalisé de bout en bout**, de la définition du cahier des charges jusqu'à la livraison finale :
+**FRANÇAIS PRO** est un projet réalisé de bout en bout par **Temgoua Mendel**, de la conception produit jusqu'au packaging Android prêt à installer :
 
 - **Conception produit & pédagogie** : parcours complet CECRL (A1 à C2), 10 formats d'exercices, dictées progressives, répétition espacée SM-2 et atelier de rédaction.
 - **Moteur linguistique français hors ligne** : tokenisation, lexique, conjugueur + recherche inverse, détection orthographique, grammaticale, syntaxique, homophones et style sans aucune dépendance réseau.
-- **Design System & UI Android** : identité visuelle Clair/Sombre, typographie structurée, 19 composants réutilisables et 24 écrans Jetpack Compose / Material 3.
-- **Ingénierie, Qualité & DevOps** : architecture MVVM / Clean Architecture, persistance Room (19 entités) + DataStore + SAF JSON, 18 tests automatisés (JUnit / Robolectric), Android Lint sans erreur et pipeline CI/CD GitHub Actions avec publication APK.
+- **Design System & UI Android** : identité visuelle Clair/Sombre, typographie structurée, 19 composants réutilisables, transitions `AnimatedContent` fluides (200 ms) et 24 écrans Jetpack Compose / Material 3.
+- **Ingénierie, Qualité & Livraison** : architecture MVVM / Clean Architecture, persistance Room (19 entités) + DataStore + SAF JSON, 22 tests automatisés (JUnit / Robolectric), Android Lint sans erreur, APK prêt à télécharger et pipeline CI/CD GitHub Actions.
 
 ---
 

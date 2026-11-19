@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasTestTag
 import com.example.core.database.UserProfile
@@ -19,6 +20,8 @@ import com.example.learning.progression.AdaptiveProgressionEngine
 import com.example.linguistics.analysis.HybridCorrectionEngine
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
@@ -35,11 +38,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import com.example.core.design.AppBottomNavigation
+import com.example.core.design.AppTopBar
 import com.example.core.design.BottomNavDestination
+import com.example.core.design.ErrorCategoryBreakdownChart
+import com.example.core.design.PrimaryButton
+import com.example.core.design.SecondaryButton
+import com.example.core.design.WeeklyMinutesBarChart
 import com.example.navigation.NavigationMotion
 import com.example.navigation.Routes
+import com.example.ui.theme.FrancaisProDarkColorScheme
+import com.example.ui.theme.FrancaisProLightColorScheme
+import com.example.ui.theme.FrancaisProPalette
 import com.example.ui.theme.FrancaisProTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -266,5 +281,113 @@ class FrancaisProUiRobolectricTest {
             composeRule.onNodeWithText("Screen:$expectedRoute").assertIsDisplayed()
             assertEquals(expectedRoute, selectedRoute)
         }
+    }
+
+    @Test
+    fun `material3 color schemes expose exact light and dark palette tokens`() {
+        // Light mode tokens
+        assertEquals(Color(0xFF101B36), FrancaisProPalette.Light.primaryNavy)
+        assertEquals(Color(0xFF356AE6), FrancaisProLightColorScheme.primary)
+        assertEquals(Color(0xFF6B8FF0), FrancaisProPalette.Light.secondaryBlue)
+        assertEquals(Color(0xFFF4F6FA), FrancaisProLightColorScheme.background)
+        assertEquals(Color(0xFFFFFFFF), FrancaisProLightColorScheme.surface)
+        assertEquals(Color(0xFF172033), FrancaisProLightColorScheme.onSurface)
+        assertEquals(Color(0xFF788397), FrancaisProLightColorScheme.onSurfaceVariant)
+        assertEquals(Color(0xFF16A36A), FrancaisProLightColorScheme.tertiary)
+        assertEquals(Color(0xFFF59E0B), FrancaisProPalette.Light.warning)
+        assertEquals(Color(0xFFDC4545), FrancaisProLightColorScheme.error)
+        assertEquals(Color(0xFFE6EAF0), FrancaisProLightColorScheme.outline)
+
+        // Dark mode tokens
+        assertEquals(Color(0xFF0B1220), FrancaisProDarkColorScheme.background)
+        assertEquals(Color(0xFF131E31), FrancaisProDarkColorScheme.surface)
+        assertEquals(Color(0xFF1B2940), FrancaisProDarkColorScheme.surfaceContainer)
+        assertEquals(Color(0xFFF5F7FC), FrancaisProDarkColorScheme.onSurface)
+        assertEquals(Color(0xFFA6B2C5), FrancaisProDarkColorScheme.onSurfaceVariant)
+        assertEquals(Color(0xFF7098FF), FrancaisProDarkColorScheme.primary)
+    }
+
+    @Test
+    fun `primary button secondary button and app top bar render and handle interactions`() {
+        var primaryClicked = false
+        var secondaryClicked = false
+        var backClicked = false
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = true) {
+                Column {
+                    AppTopBar(
+                        title = "Académie",
+                        subtitle = "Niveau B1",
+                        onBack = { backClicked = true }
+                    )
+                    PrimaryButton(
+                        text = "Continuer",
+                        onClick = { primaryClicked = true },
+                        modifier = Modifier.testTag("test_primary_btn")
+                    )
+                    PrimaryButton(
+                        text = "Chargement",
+                        onClick = {},
+                        isLoading = true,
+                        modifier = Modifier.testTag("test_loading_btn")
+                    )
+                    SecondaryButton(
+                        text = "Ignorer",
+                        onClick = { secondaryClicked = true },
+                        modifier = Modifier.testTag("test_secondary_btn")
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("Académie").assertIsDisplayed()
+        composeRule.onNodeWithText("Niveau B1").assertIsDisplayed()
+        composeRule.onNodeWithTag("top_bar_back_button").performClick()
+        assertTrue(backClicked)
+
+        composeRule.onNodeWithTag("test_primary_btn").performClick()
+        assertTrue(primaryClicked)
+
+        composeRule.onNodeWithTag("test_loading_btn").assertIsNotEnabled()
+
+        composeRule.onNodeWithTag("test_secondary_btn").performClick()
+        assertTrue(secondaryClicked)
+    }
+
+    @Test
+    fun `statistics weekly bar chart and error breakdown donut support interactive inspection`() {
+        val sampleDays = listOf(
+            "Lu" to 10, "Ma" to 20, "Me" to 15, "Je" to 5, "Ve" to 25, "Sa" to 18, "Di" to 12
+        )
+        val sampleErrors = listOf(
+            Triple("Orthographe", 6, Color(0xFFDC4545)),
+            Triple("Grammaire", 3, Color(0xFFF59E0B)),
+            Triple("Style", 1, Color(0xFF356AE6))
+        )
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    WeeklyMinutesBarChart(days = sampleDays, targetMinutes = 15)
+                    ErrorCategoryBreakdownChart(items = sampleErrors)
+                }
+            }
+        }
+
+        // Sélection interactive d'un jour dans le graphique hebdomadaire
+        composeRule.onNodeWithTag("statistics_weekly_chart").assertIsDisplayed()
+        composeRule.onNodeWithTag("weekly_day_bar_1").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Ma · 20 min").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Objectif atteint").performScrollTo().assertIsDisplayed()
+
+        // Sélection interactive d'une catégorie dans le donut de répartition des erreurs
+        composeRule.onNodeWithTag("error_donut_center_summary").performScrollTo()
+        composeRule.onNodeWithText("10").assertIsDisplayed()
+        composeRule.onNodeWithTag("error_category_row_0").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("error_donut_center_summary").performScrollTo()
+        composeRule.onNodeWithText("60 %").assertIsDisplayed()
     }
 }

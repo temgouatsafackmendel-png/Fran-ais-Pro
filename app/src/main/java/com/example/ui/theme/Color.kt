@@ -56,3 +56,38 @@ val ErrorContainerDark = Color(0xFF3D1A1F)
 val OnErrorContainerDark = Color(0xFFFECACA)
 val SyntaxContainerDark = Color(0xFF2A1D4D)
 val OnSyntaxContainerDark = Color(0xFFDDD6FE)
+
+/**
+ * Espace de noms structuré des tokens chromatiques officiels FRANÇAIS PRO (Clair & Sombre).
+ */
+object FrancaisProPalette {
+    object Light {
+        val primaryNavy = PrimaryNavy
+        val primaryBlue = PrimaryBlue
+        val secondaryBlue = SecondaryBlue
+        val background = BackgroundLight
+        val surface = SurfaceLight
+        val elevatedSurface = ElevatedSurfaceLight
+        val textPrimary = TextPrimaryLight
+        val textSecondary = TextSecondaryLight
+        val success = SuccessLight
+        val warning = WarningLight
+        val error = ErrorLight
+        val border = BorderLight
+    }
+
+    object Dark {
+        val background = BackgroundDark
+        val surface = SurfaceDark
+        val elevatedSurface = ElevatedSurfaceDark
+        val textPrimary = TextPrimaryDark
+        val textSecondary = TextSecondaryDark
+        val primaryBlue = PrimaryBlueDark
+        val secondaryBlue = SecondaryBlueDark
+        val success = SuccessDark
+        val warning = WarningDark
+        val error = ErrorDark
+        val border = BorderDark
+    }
+}
+

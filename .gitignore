@@ -22,8 +22,7 @@ debug.keystore
 /dist
 *.apk
 *.aab
-releases/*.apk
-releases/*.aab
+!releases/FrancaisPro-v1.0.0.apk
 .aistudio/
 .build-outputs/
 

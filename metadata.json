@@ -1,0 +1,6 @@
+{
+  "name": "Français Pro",
+  "description": "Application Android 100 % hors ligne d'apprentissage et de maîtrise du français : correcteur intelligent local, académie CECRL A1-C2, dictionnaire, conjugueur, exercices, dictées, vocabulaire SRS et atelier de rédaction.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

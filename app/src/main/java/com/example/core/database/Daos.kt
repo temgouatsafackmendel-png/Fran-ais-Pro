@@ -1,0 +1,296 @@
+package com.example.core.database
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface UserProfileDao {
+    @Query("SELECT * FROM user_profile WHERE id = 1")
+    fun observeProfile(): Flow<UserProfile?>
+
+    @Query("SELECT * FROM user_profile WHERE id = 1")
+    suspend fun getProfile(): UserProfile?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(profile: UserProfile)
+}
+
+@Dao
+interface LessonDao {
+    @Query("SELECT * FROM lessons ORDER BY level ASC, chapterOrder ASC")
+    fun observeAllLessons(): Flow<List<Lesson>>
+
+    @Query("SELECT * FROM lessons WHERE level = :level ORDER BY chapterOrder ASC")
+    fun observeLessonsByLevel(level: String): Flow<List<Lesson>>
+
+    @Query("SELECT * FROM lessons WHERE id = :lessonId")
+    suspend fun getLessonById(lessonId: String): Lesson?
+
+    @Query("SELECT * FROM lesson_progress")
+    fun observeAllProgress(): Flow<List<LessonProgress>>
+
+    @Query("SELECT * FROM lesson_progress")
+    suspend fun getAllProgressSnapshot(): List<LessonProgress>
+
+    @Query("SELECT * FROM lesson_progress WHERE lessonId = :lessonId")
+    suspend fun getProgressForLesson(lessonId: String): LessonProgress?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLessons(lessons: List<Lesson>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertProgress(progress: LessonProgress)
+
+    @Query("DELETE FROM lesson_progress")
+    suspend fun clearProgress()
+
+    @Query("SELECT COUNT(*) FROM lessons")
+    suspend fun countLessons(): Int
+}
+
+@Dao
+interface ExerciseDao {
+    @Query("SELECT * FROM exercises ORDER BY level ASC, difficulty ASC")
+    fun observeAllExercises(): Flow<List<Exercise>>
+
+    @Query("SELECT * FROM exercises WHERE lessonId = :lessonId")
+    suspend fun getExercisesByLesson(lessonId: String): List<Exercise>
+
+    @Query("SELECT * FROM exercises WHERE id = :id")
+    suspend fun getExerciseById(id: String): Exercise?
+
+    @Query("SELECT * FROM exercise_attempts ORDER BY attemptedAt DESC")
+    fun observeAttempts(): Flow<List<ExerciseAttempt>>
+
+    @Query("SELECT * FROM exercise_attempts ORDER BY attemptedAt DESC")
+    suspend fun getAllAttemptsSnapshot(): List<ExerciseAttempt>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExercises(exercises: List<Exercise>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAttempt(attempt: ExerciseAttempt)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAttempts(attempts: List<ExerciseAttempt>)
+
+    @Query("DELETE FROM exercise_attempts")
+    suspend fun clearAttempts()
+
+    @Query("SELECT COUNT(*) FROM exercises")
+    suspend fun countExercises(): Int
+}
+
+@Dao
+interface DictionaryDao {
+    @Query("SELECT * FROM dictionary_entries ORDER BY word ASC")
+    fun observeAllEntries(): Flow<List<DictionaryEntry>>
+
+    @Query("SELECT * FROM dictionary_entries WHERE normalizedWord LIKE :query || '%' OR word LIKE '%' || :rawQuery || '%' OR definition LIKE '%' || :rawQuery || '%' ORDER BY word ASC LIMIT 80")
+    fun searchEntries(query: String, rawQuery: String): Flow<List<DictionaryEntry>>
+
+    @Query("SELECT * FROM dictionary_entries WHERE partOfSpeech = :category ORDER BY word ASC")
+    fun observeByCategory(category: String): Flow<List<DictionaryEntry>>
+
+    @Query("SELECT * FROM dictionary_entries WHERE lastViewedAt > 0 ORDER BY lastViewedAt DESC LIMIT 20")
+    fun observeRecentEntries(): Flow<List<DictionaryEntry>>
+
+    @Query("SELECT * FROM dictionary_entries WHERE id = :id")
+    suspend fun getById(id: String): DictionaryEntry?
+
+    @Query("SELECT * FROM dictionary_entries")
+    suspend fun getAllSnapshot(): List<DictionaryEntry>
+
+    @Query("UPDATE dictionary_entries SET lastViewedAt = :timestamp WHERE id = :id")
+    suspend fun markViewed(id: String, timestamp: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEntries(entries: List<DictionaryEntry>)
+
+    @Query("SELECT COUNT(*) FROM dictionary_entries")
+    suspend fun countEntries(): Int
+}
+
+@Dao
+interface ConjugationDao {
+    @Query("SELECT * FROM verbs ORDER BY infinitive ASC")
+    fun observeAllVerbs(): Flow<List<Verb>>
+
+    @Query("SELECT * FROM verbs WHERE infinitive = :infinitive")
+    suspend fun getVerb(infinitive: String): Verb?
+
+    @Query("SELECT * FROM conjugations WHERE verbInfinitive = :infinitive ORDER BY mood, tense, personIndex")
+    suspend fun getConjugationsForVerb(infinitive: String): List<Conjugation>
+
+    @Query("SELECT * FROM conjugations WHERE normalizedForm = :normalizedForm LIMIT 12")
+    suspend fun findByConjugatedForm(normalizedForm: String): List<Conjugation>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertVerbs(verbs: List<Verb>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertConjugations(conjugations: List<Conjugation>)
+
+    @Query("SELECT COUNT(*) FROM verbs")
+    suspend fun countVerbs(): Int
+}
+
+@Dao
+interface CorrectionDao {
+    @Query("SELECT * FROM correction_history ORDER BY createdAt DESC LIMIT 100")
+    fun observeHistory(): Flow<List<CorrectionHistory>>
+
+    @Query("SELECT * FROM correction_history ORDER BY createdAt DESC")
+    suspend fun getHistorySnapshot(): List<CorrectionHistory>
+
+    @Query("SELECT * FROM correction_errors WHERE historyId = :historyId")
+    suspend fun getErrorsForHistory(historyId: Long): List<CorrectionError>
+
+    @Query("SELECT * FROM correction_errors")
+    suspend fun getAllErrorsSnapshot(): List<CorrectionError>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHistory(history: CorrectionHistory): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertErrors(errors: List<CorrectionError>)
+
+    @Query("DELETE FROM correction_history WHERE id = :id")
+    suspend fun deleteHistory(id: Long)
+
+    @Query("DELETE FROM correction_history")
+    suspend fun clearHistory()
+}
+
+@Dao
+interface VocabularyDao {
+    @Query("SELECT * FROM vocabulary_words ORDER BY level ASC, word ASC")
+    fun observeAllWords(): Flow<List<VocabularyWord>>
+
+    @Query("SELECT * FROM vocabulary_progress")
+    fun observeAllProgress(): Flow<List<VocabularyProgress>>
+
+    @Query("SELECT * FROM vocabulary_progress")
+    suspend fun getAllProgressSnapshot(): List<VocabularyProgress>
+
+    @Query("SELECT * FROM vocabulary_progress WHERE wordId = :wordId")
+    suspend fun getProgress(wordId: String): VocabularyProgress?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWords(words: List<VocabularyWord>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertProgress(progress: VocabularyProgress)
+
+    @Query("DELETE FROM vocabulary_progress")
+    suspend fun clearProgress()
+
+    @Query("SELECT COUNT(*) FROM vocabulary_words")
+    suspend fun countWords(): Int
+}
+
+@Dao
+interface DictationDao {
+    @Query("SELECT * FROM dictations ORDER BY level ASC, title ASC")
+    fun observeAllDictations(): Flow<List<Dictation>>
+
+    @Query("SELECT * FROM dictations WHERE id = :id")
+    suspend fun getById(id: String): Dictation?
+
+    @Query("SELECT * FROM dictation_attempts ORDER BY attemptedAt DESC")
+    fun observeAttempts(): Flow<List<DictationAttempt>>
+
+    @Query("SELECT * FROM dictation_attempts ORDER BY attemptedAt DESC")
+    suspend fun getAttemptsSnapshot(): List<DictationAttempt>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDictations(dictations: List<Dictation>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAttempt(attempt: DictationAttempt): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAttempts(attempts: List<DictationAttempt>)
+
+    @Query("DELETE FROM dictation_attempts")
+    suspend fun clearAttempts()
+
+    @Query("SELECT COUNT(*) FROM dictations")
+    suspend fun countDictations(): Int
+}
+
+@Dao
+interface StatsAndMetaDao {
+    @Query("SELECT * FROM daily_goals ORDER BY epochDay DESC LIMIT 30")
+    fun observeDailyGoals(): Flow<List<DailyGoal>>
+
+    @Query("SELECT * FROM daily_goals WHERE epochDay = :epochDay")
+    suspend fun getDailyGoal(epochDay: Long): DailyGoal?
+
+    @Query("SELECT * FROM daily_goals")
+    suspend fun getAllDailyGoalsSnapshot(): List<DailyGoal>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDailyGoal(goal: DailyGoal)
+
+    @Query("DELETE FROM daily_goals")
+    suspend fun clearDailyGoals()
+
+    @Query("SELECT * FROM achievements ORDER BY isUnlocked DESC, title ASC")
+    fun observeAchievements(): Flow<List<Achievement>>
+
+    @Query("SELECT * FROM achievements")
+    suspend fun getAchievementsSnapshot(): List<Achievement>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAchievements(achievements: List<Achievement>)
+
+    @Update
+    suspend fun updateAchievement(achievement: Achievement)
+
+    @Query("SELECT * FROM learning_statistics ORDER BY masteryPercent ASC")
+    fun observeStatistics(): Flow<List<LearningStatistics>>
+
+    @Query("SELECT * FROM learning_statistics")
+    suspend fun getStatisticsSnapshot(): List<LearningStatistics>
+
+    @Query("SELECT * FROM learning_statistics WHERE skillCategory = :category")
+    suspend fun getStatisticByCategory(category: String): LearningStatistics?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertStatistic(stat: LearningStatistics)
+
+    @Query("DELETE FROM learning_statistics")
+    suspend fun clearStatistics()
+
+    @Query("SELECT * FROM favorites ORDER BY createdAt DESC")
+    fun observeFavorites(): Flow<List<Favorite>>
+
+    @Query("SELECT * FROM favorites")
+    suspend fun getFavoritesSnapshot(): List<Favorite>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM favorites WHERE itemType = :type AND itemId = :itemId)")
+    fun observeIsFavorite(type: String, itemId: String): Flow<Boolean>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFavorite(favorite: Favorite)
+
+    @Query("DELETE FROM favorites WHERE itemType = :type AND itemId = :itemId")
+    suspend fun deleteFavorite(type: String, itemId: String)
+
+    @Query("DELETE FROM favorites")
+    suspend fun clearFavorites()
+
+    @Query("SELECT * FROM app_settings WHERE id = 1")
+    fun observeSettings(): Flow<AppSettings?>
+
+    @Query("SELECT * FROM app_settings WHERE id = 1")
+    suspend fun getSettings(): AppSettings?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSettings(settings: AppSettings)
+}

@@ -1,0 +1,118 @@
+name: Android CI & Release APK
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-build:
+    name: Tests, Lint & Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le code source
+        uses: actions/checkout@v4
+
+      - name: Configurer JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Configurer Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Préparer le keystore debug éphémère (si absent)
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=FR"
+          fi
+
+      - name: Exécuter les tests unitaires et Robolectric
+        run: gradle :app:testDebugUnitTest --stacktrace
+
+      - name: Exécuter Android Lint
+        run: gradle :app:lintDebug
+
+      - name: Compiler l'APK Debug
+        run: gradle :app:assembleDebug
+
+      - name: Préparer les livrables et empreintes SHA-256
+        id: package
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_REF}" != refs/tags/* ]]; then
+            VERSION="dev-${GITHUB_SHA::7}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/FrancaisPro-${VERSION}-debug.apk"
+
+      - name: Compiler l'APK et l'AAB Release signés (si secrets configurés)
+        if: startsWith(github.ref, 'refs/tags/v') && env.HAS_SIGNING == 'true'
+        env:
+          HAS_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && secrets.STORE_PASSWORD != '' && secrets.KEY_PASSWORD != '' }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
+          export KEYSTORE_PATH="$(pwd)/my-upload-key.jks"
+          gradle :app:assembleRelease :app:bundleRelease
+          VERSION="${{ steps.package.outputs.version }}"
+          cp app/build/outputs/apk/release/app-release.apk "dist/FrancaisPro-${VERSION}-release.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/FrancaisPro-${VERSION}.aab"
+          rm -f my-upload-key.jks
+
+      - name: Générer SHA256SUMS.txt
+        run: |
+          cd dist
+          sha256sum FrancaisPro-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Archiver l'APK en artefact GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: FrancaisPro-${{ steps.package.outputs.version }}
+          path: dist/*
+          retention-days: 30
+
+      - name: Publier la GitHub Release (sur tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "FRANÇAIS PRO ${{ github.ref_name }}"
+          generate_release_notes: true
+          body: |
+            ## FRANÇAIS PRO ${{ github.ref_name }}
+
+            **Écrivez mieux. Parlez juste. Progressez chaque jour.**
+            Application Android native 100 % hors ligne, gratuite, sans publicité et sans compte.
+            *Projet réalisé de bout en bout par mes soins.*
+
+            ### Installation rapide
+            1. Téléchargez l'APK ci-dessous (`release.apk` si disponible, sinon `debug.apk`).
+            2. Vérifiez son intégrité avec `SHA256SUMS.txt`.
+            3. Installez sur Android 7.0+ (API 24+).
+
+            Consultez [`CHANGELOG.md`](CHANGELOG.md) pour la liste complète des évolutions.
+          files: |
+            dist/*

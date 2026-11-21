@@ -31,6 +31,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -89,6 +90,10 @@ fun DictationScreen(
 
     val visualSegments = remember(active?.id) {
         active?.referenceText?.split(Regex("(?<=[.!?])\\s+")).orEmpty()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { onStopSpeak() }
     }
 
     LaunchedEffect(visualPromptActive, visualSegmentIdx) {

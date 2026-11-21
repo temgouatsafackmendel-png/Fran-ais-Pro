@@ -1,6 +1,7 @@
 package com.example.features.dashboard
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,22 +25,32 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -49,6 +60,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -70,11 +83,17 @@ import com.example.core.design.ProgressCard
 import com.example.core.design.SectionHeader
 import com.example.core.design.StatisticsCard
 import com.example.core.design.UserInitialsAvatar
+import com.example.learning.progression.CoursePathEngine
+import com.example.learning.progression.DailyQuest
+import com.example.learning.progression.DailyQuestsEngine
+import com.example.learning.progression.DailyQuestsSummary
+import com.example.learning.progression.LessonUnlockStatus
 import com.example.learning.progression.LinguisticProfileSummary
 import com.example.navigation.Routes
 import com.example.ui.theme.FrancaisProDimens
 import com.example.ui.theme.FrancaisProTextStyles
 import com.example.ui.theme.LocalSemanticColors
+import com.example.ui.theme.LocalSpacing
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -109,30 +128,43 @@ fun DashboardScreen(
             .replaceFirstChar { it.titlecase(Locale.FRANCE) }
     }
 
-    // Prochaines leçons à reprendre (priorité au niveau estimé de l'utilisateur)
-    val continueLessons = remember(lessons, completedMap, adaptiveSummary.estimatedLevel) {
-        val uncompletedSameLevel = lessons.filter {
-            it.level == adaptiveSummary.estimatedLevel && completedMap[it.id]?.isCompleted != true
-        }
-        val uncompletedAny = lessons.filter { completedMap[it.id]?.isCompleted != true }
-        (uncompletedSameLevel + uncompletedAny + lessons).distinctBy { it.id }.take(2)
+    // Parcours progressif CECRL : toujours proposer le prochain chapitre débloqué
+    val roadmap = remember(lessons, lessonProgress) {
+        CoursePathEngine.buildRoadmap(lessons, lessonProgress)
     }
-    val nextLesson = continueLessons.firstOrNull()
+    val continueSteps = remember(roadmap) {
+        val unlockedSteps = roadmap.levels
+            .flatMap { it.steps }
+            .filter { it.status != LessonUnlockStatus.LOCKED }
+        val currentFirst = unlockedSteps.filter { it.status == LessonUnlockStatus.CURRENT }
+        val completedFallback = unlockedSteps.filter { it.status == LessonUnlockStatus.COMPLETED }.reversed()
+        (currentFirst + completedFallback).distinctBy { it.lesson.id }.take(2)
+    }
+    val nextLesson = roadmap.nextRecommendedLesson ?: continueSteps.firstOrNull()?.lesson
+    val dailyQuests = remember(lessonProgress, exerciseAttempts, dailyGoals, dailyTargetMinutes) {
+        DailyQuestsEngine.computeToday(
+            lessonProgress = lessonProgress,
+            exerciseAttempts = exerciseAttempts,
+            dailyGoals = dailyGoals,
+            dailyTargetMinutes = dailyTargetMinutes
+        )
+    }
 
+    val spacing = LocalSpacing.current
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter
     ) {
-        val hPadding = FrancaisProDimens.screenHorizontalPadding(maxWidth)
+        val hPadding = spacing.screenHorizontalPadding(maxWidth)
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = FrancaisProDimens.MaxContentWidth)
+                .widthIn(max = spacing.maxContentWidth)
                 .testTag("dashboard_list"),
-            contentPadding = PaddingValues(horizontal = hPadding, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            contentPadding = PaddingValues(horizontal = hPadding, vertical = spacing.space16),
+            verticalArrangement = Arrangement.spacedBy(spacing.space20)
         ) {
             // 1. En-tête : Salutation, date du jour, avatar local, paramètres
             item {
@@ -212,6 +244,8 @@ fun DashboardScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionHeader(
                         title = "Votre entraînement du jour",
+                        subtitle = "Ateliers rapides ciblés par compétence",
+                        icon = Icons.Filled.FitnessCenter,
                         actionText = "Exercices",
                         onAction = { onNavigate(Routes.EXERCISES) }
                     )
@@ -242,25 +276,37 @@ fun DashboardScreen(
                 }
             }
 
-            // 4. Continuer à apprendre (dernières leçons commencées / suivantes)
-            if (continueLessons.isNotEmpty()) {
+            // 3b. Missions du jour (boucle d'habitude inspirée des meilleurs coachs linguistiques)
+            item(key = "daily_quests") {
+                DailyQuestsCard(
+                    summary = dailyQuests,
+                    onQuestClick = { quest -> onNavigate(quest.targetRoute) }
+                )
+            }
+
+            // 4. Continuer à apprendre (chapitres débloqués du parcours progressif)
+            if (continueSteps.isNotEmpty()) {
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SectionHeader(
-                            title = "Continuer à apprendre",
+                            title = "Continuer votre parcours",
+                            subtitle = "Palier actif ${roadmap.activeLevel} · ${roadmap.completedLessonsCount}/${roadmap.totalLessonsCount} cours validés",
+                            icon = Icons.Filled.Route,
                             actionText = "Académie",
                             onAction = { onNavigate(Routes.ACADEMY) }
                         )
-                        continueLessons.forEach { lesson ->
-                            val lp = completedMap[lesson.id]
+                        continueSteps.forEach { step ->
+                            val lesson = step.lesson
                             LessonCard(
                                 title = lesson.title,
                                 summary = lesson.summary,
                                 theme = lesson.theme,
                                 level = lesson.level,
                                 estimatedMinutes = lesson.estimatedMinutes,
-                                isCompleted = lp?.isCompleted == true,
-                                scorePercent = lp?.quizScorePercent,
+                                isCompleted = step.status == LessonUnlockStatus.COMPLETED,
+                                scorePercent = step.scorePercent,
+                                chapterNumber = step.chapterNumber,
+                                isCurrent = step.status == LessonUnlockStatus.CURRENT,
                                 onClick = { onNavigate(Routes.lessonDetail(lesson.id)) },
                                 modifier = Modifier.testTag("dash_lesson_${lesson.id}")
                             )
@@ -274,6 +320,8 @@ fun DashboardScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SectionHeader(
                         title = "Vos progrès",
+                        subtitle = "Suivi local de votre régularité",
+                        icon = Icons.AutoMirrored.Filled.TrendingUp,
                         actionText = "Statistiques",
                         onAction = { onNavigate(Routes.STATISTICS) }
                     )
@@ -317,13 +365,68 @@ fun DashboardScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                    EditorialCard(
+                        onClick = { onNavigate(Routes.PERFORMANCE_OVERVIEW) },
+                        borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f),
+                        contentPadding = 14.dp,
+                        modifier = Modifier.testTag("dash_progress_trends_link")
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ShowChart,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                Column {
+                                    Text(
+                                        text = "Courbes d'évolution sur 30 jours",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Grammaire · Vocabulaire · Écriture",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = semantic.textSecondary
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Ouvrir l'aperçu 30 jours",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
 
             // 6. À améliorer (points faibles détectés + ateliers secondaires)
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionHeader(title = "À améliorer")
+                    SectionHeader(
+                        title = "À améliorer",
+                        subtitle = "Priorités adaptées à vos résultats",
+                        icon = Icons.Filled.Tune
+                    )
                     if (adaptiveSummary.weakSkills.isNotEmpty()) {
                         EditorialCard {
                             adaptiveSummary.weakSkills.forEachIndexed { idx, stat ->
@@ -368,8 +471,13 @@ fun DashboardScreen(
             // Raccourcis ateliers complémentaires (accès fluide sans encombrer la navigation)
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionHeader(title = "Ateliers & outils")
+                    SectionHeader(
+                        title = "Ateliers & outils",
+                        subtitle = "Tous vos modules hors ligne en un geste",
+                        icon = Icons.Filled.Build
+                    )
                     val tools = listOf(
+                        Triple("Performances 30 j", Icons.AutoMirrored.Filled.ShowChart, Routes.PERFORMANCE_OVERVIEW),
                         Triple("Dictionnaire", Icons.AutoMirrored.Filled.MenuBook, Routes.DICTIONARY),
                         Triple("Démo & Guide", Icons.Filled.PlayArrow, Routes.USER_GUIDE),
                         Triple("Dictées", Icons.Filled.Mic, Routes.DICTATION),
@@ -471,6 +579,8 @@ private fun WordOfTheDayCard(
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeader(
             title = "Mot du jour",
+            subtitle = "Enrichissez votre vocabulaire quotidien",
+            icon = Icons.Filled.AutoAwesome,
             actionText = "Dictionnaire",
             onAction = onOpenDictionary
         )
@@ -569,6 +679,108 @@ private fun WordOfTheDayCard(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp)
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyQuestsCard(
+    summary: DailyQuestsSummary,
+    onQuestClick: (DailyQuest) -> Unit
+) {
+    val semantic = LocalSemanticColors.current
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.testTag("dash_daily_quests_card")
+    ) {
+        SectionHeader(
+            title = "Missions du jour",
+            subtitle = "${summary.completedCount}/${summary.totalCount} accomplies · +${summary.earnedBonusXp}/${summary.totalBonusXp} XP",
+            icon = Icons.Filled.Flag
+        )
+        EditorialCard(
+            contentPadding = 14.dp,
+            borderColor = if (summary.allCompleted) semantic.success.copy(alpha = 0.45f) else semantic.border
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                summary.quests.forEach { quest ->
+                    val trackColor = semantic.surfaceSubtle
+                    val fillColor = if (quest.isCompleted) semantic.success else MaterialTheme.colorScheme.primary
+                    Surface(
+                        onClick = { onQuestClick(quest) },
+                        shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
+                        color = if (quest.isCompleted) semantic.successContainer.copy(alpha = 0.45f)
+                        else semantic.surfaceSubtle.copy(alpha = 0.65f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("dash_${quest.id}")
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = if (quest.isCompleted) Icons.Filled.Verified else Icons.Filled.EmojiEvents,
+                                        contentDescription = null,
+                                        tint = if (quest.isCompleted) semantic.success else MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Column {
+                                        Text(
+                                            text = quest.title,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = quest.subtitle,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = semantic.textSecondary
+                                        )
+                                    }
+                                }
+                                CategoryBadge(
+                                    label = if (quest.isCompleted) "Fait" else "+${quest.xpReward} XP",
+                                    color = if (quest.isCompleted) semantic.success else MaterialTheme.colorScheme.primary,
+                                    containerColor = if (quest.isCompleted) semantic.successContainer else MaterialTheme.colorScheme.primaryContainer,
+                                    icon = if (quest.isCompleted) Icons.Filled.CheckCircle else Icons.Filled.Bolt
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Canvas(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(6.dp)
+                                ) {
+                                    val r = CornerRadius(size.height / 2f, size.height / 2f)
+                                    drawRoundRect(color = trackColor, size = size, cornerRadius = r)
+                                    val w = size.width * quest.progressRatio
+                                    if (w > 0f) {
+                                        drawRoundRect(color = fillColor, size = Size(w, size.height), cornerRadius = r)
+                                    }
+                                }
+                                Text(
+                                    text = "${quest.current}/${quest.target}",
+                                    style = FrancaisProTextStyles.MonoMetric,
+                                    color = semantic.textSecondary
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

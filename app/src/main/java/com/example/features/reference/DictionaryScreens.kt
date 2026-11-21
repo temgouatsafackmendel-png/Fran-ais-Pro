@@ -28,14 +28,17 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -57,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.core.database.DictionaryEntry
 import com.example.core.database.Favorite
+import com.example.core.database.RecentDictionarySearch
 import com.example.core.design.AppIconButton
 import com.example.core.design.AppSearchBar
 import com.example.core.design.AppTopBar
@@ -86,6 +90,11 @@ fun DictionaryScreen(
     onToggleFavoritesOnly: () -> Unit,
     onClearFilters: () -> Unit,
     onOpenWord: (String) -> Unit,
+    onSpeakWord: (String) -> Unit = {},
+    onSearchSubmit: (String) -> Unit = {},
+    onSelectRecentSearch: (RecentDictionarySearch) -> Unit = {},
+    onRemoveRecentSearch: (String) -> Unit = {},
+    onClearRecentSearches: () -> Unit = {},
     onAddCustomWord: (
         word: String,
         partOfSpeech: String,
@@ -149,6 +158,7 @@ fun DictionaryScreen(
             AppSearchBar(
                 query = uiState.query,
                 onQueryChange = onQueryChange,
+                onSearch = { onSearchSubmit(uiState.query) },
                 placeholder = "Mot, définition, synonyme ou antonyme…",
                 modifier = Modifier
                     .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -259,6 +269,88 @@ fun DictionaryScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                if (uiState.query.isBlank() && uiState.recentSearches.isNotEmpty() && !uiState.favoritesOnly) {
+                    item(key = "recent_searches_header") {
+                        Column(modifier = Modifier.testTag("dict_recent_searches_section")) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.History,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        "Recherches récentes",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = semantic.textSecondary
+                                    )
+                                }
+                                TextButton(
+                                    onClick = onClearRecentSearches,
+                                    modifier = Modifier.testTag("dict_clear_recent_searches_btn")
+                                ) {
+                                    Text("Effacer")
+                                }
+                            }
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(uiState.recentSearches, key = { "rsearch_${it.normalizedQuery}" }) { item ->
+                                    Surface(
+                                        shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(1.dp, semantic.border)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(FrancaisProDimens.RadiusSmall))
+                                                    .clickable(role = Role.Button) { onSelectRecentSearch(item) }
+                                                    .padding(start = 10.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
+                                                    .testTag("dict_recent_search_${item.normalizedQuery}"),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.History,
+                                                    contentDescription = null,
+                                                    tint = semantic.textSecondary,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                                Text(
+                                                    text = item.queryText,
+                                                    style = MaterialTheme.typography.labelLarge
+                                                )
+                                            }
+                                            androidx.compose.material3.IconButton(
+                                                onClick = { onRemoveRecentSearch(item.normalizedQuery) },
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .testTag("dict_remove_recent_search_${item.normalizedQuery}")
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Close,
+                                                    contentDescription = "Supprimer ${item.queryText}",
+                                                    tint = semantic.textSecondary,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (uiState.query.isBlank() && uiState.recentEntries.isNotEmpty() && !uiState.favoritesOnly) {
                     item(key = "recent_header") {
                         Column {
@@ -320,6 +412,7 @@ fun DictionaryScreen(
                         DictionaryEntryCard(
                             item = item,
                             isFavorite = item.id in favWordIds,
+                            onSpeak = { onSpeakWord(item.word) },
                             onClick = { onOpenWord(item.id) }
                         )
                     }
@@ -334,6 +427,7 @@ fun DictionaryScreen(
 private fun DictionaryEntryCard(
     item: DictionaryEntry,
     isFavorite: Boolean,
+    onSpeak: () -> Unit,
     onClick: () -> Unit
 ) {
     val semantic = LocalSemanticColors.current
@@ -353,44 +447,54 @@ private fun DictionaryEntryCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = item.word,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = item.pronunciation,
-                    style = FrancaisProTextStyles.MonoMetric,
-                    color = semantic.textSecondary,
-                    maxLines = 1
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isFavorite) {
-                    Icon(
-                        imageVector = Icons.Filled.Favorite,
-                        contentDescription = "Favori",
-                        tint = semantic.danger,
-                        modifier = Modifier.size(16.dp)
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = item.word,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = item.pronunciation,
+                        style = FrancaisProTextStyles.MonoMetric,
+                        color = semantic.textSecondary,
+                        maxLines = 1
                     )
                 }
-                CefrLevelPill(level = item.level)
-                CategoryBadge(
-                    label = item.partOfSpeech,
-                    color = MaterialTheme.colorScheme.primary,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CefrLevelPill(level = item.level)
+                    CategoryBadge(
+                        label = item.partOfSpeech,
+                        color = MaterialTheme.colorScheme.primary,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                    if (isFavorite) {
+                        Icon(
+                            imageVector = Icons.Filled.Favorite,
+                            contentDescription = "Favori",
+                            tint = semantic.danger,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
+            AppIconButton(
+                icon = Icons.AutoMirrored.Filled.VolumeUp,
+                contentDescription = "Écouter ${item.word}",
+                tint = MaterialTheme.colorScheme.primary,
+                containerColor = semantic.surfaceSubtle,
+                onClick = onSpeak,
+                modifier = Modifier.testTag("dict_speak_${item.id}")
+            )
         }
 
         Spacer(Modifier.height(6.dp))

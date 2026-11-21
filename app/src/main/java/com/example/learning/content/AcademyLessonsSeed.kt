@@ -61,6 +61,15 @@ object AcademyLessonsSeed {
             pitfallsContent = "À l'oral, « il joue » et « ils jouent » se prononcent pareil, mais le pluriel prend toujours « -nt » à l'écrit. Attention à « vous faites » et « vous dites ».",
             estimatedMinutes = 9
         ),
+        Lesson(
+            id = "a1_synt_01", level = "A1", moduleTitle = "Structure de la phrase", chapterOrder = 4,
+            theme = "Syntaxe", title = "Construire une phrase simple : affirmative, négative et interrogative",
+            summary = "Maîtriser l'ordre Sujet-Verbe-Complément, la négation en deux temps et les trois façons de poser une question.",
+            ruleContent = "En français, la phrase canonique suit l'ordre Sujet + Verbe + Complément.\n• Phrase négative : elle s'encadre toujours de deux éléments (ne ... pas, ne ... jamais, ne ... plus, ne ... rien). Devant une voyelle, « ne » s'élide en « n' » : Je n'aime pas le bruit.\n• Phrase interrogative (3 registres) : intonation montante (Tu viens ?), locution « Est-ce que » (Est-ce que tu viens ?), ou inversion sujet-verbe soutenue (Viens-tu ?).\n• Négation + article indéfini : « un, une, des » deviennent « de / d' » à la forme négative (J'ai un stylo → Je n'ai pas de stylo).",
+            examplesJson = "Les élèves préparent leur examen.||Je ne comprends pas cette consigne.||Est-ce que vous pratiquez le français chaque jour ?||Avez-vous terminé la lecture ?",
+            pitfallsContent = "À l'écrit, n'omettez jamais le « ne » de négation (« Je sais pas » est réservé à l'oral familier). Avec « être », l'article indéfini ne change pas : « Ce n'est pas une erreur ».",
+            estimatedMinutes = 8
+        ),
         // A2 — Élémentaire
         Lesson(
             id = "a2_gram_01", level = "A2", moduleTitle = "Homophones grammaticaux", chapterOrder = 1,
@@ -81,7 +90,16 @@ object AcademyLessonsSeed {
             estimatedMinutes = 10
         ),
         Lesson(
-            id = "a2_ponct_01", level = "A2", moduleTitle = "Clarté typographique", chapterOrder = 3,
+            id = "a2_conj_02", level = "A2", moduleTitle = "Temps du récit", chapterOrder = 3,
+            theme = "Conjugaison", title = "L'imparfait : habitudes, descriptions et opposition au passé composé",
+            summary = "Former l'imparfait régulièrement et savoir l'articuler avec le passé composé dans un récit.",
+            ruleContent = "L'imparfait se forme sur le radical de la 1re personne du pluriel au présent (nous finiss-ons, nous pren-ons) + les terminaisons uniques : -ais, -ais, -ait, -ions, -iez, -aient. Seul « être » possède un radical propre (ét- : j'étais).\n• Emplois de l'imparfait : décor, description, état durable ou habitude passée (Chaque été, nous lisions au jardin).\n• Articulation avec le passé composé : l'imparfait plante le cadre ; le passé composé marque l'événement soudain ou achevé (Il pleuvait quand le train est arrivé).",
+            examplesJson = "Chaque matin, elle révisait son vocabulaire pendant quinze minutes.||Le ciel était clair lorsque nous avons commencé la marche.||Nous étions ravis de vous accueillir.",
+            pitfallsContent = "Attention aux verbes en -ier, -yer et -gner avec « nous / vous » : nous étudiions (deux i), vous travailliez, nous gagniions (non : nous gagnions). N'oubliez pas le « i » après « g » ou « y ».",
+            estimatedMinutes = 9
+        ),
+        Lesson(
+            id = "a2_ponct_01", level = "A2", moduleTitle = "Clarté typographique", chapterOrder = 4,
             theme = "Ponctuation", title = "Règles de ponctuation française",
             summary = "Maîtriser les virgules, points et règles d'espacement en français.",
             ruleContent = "La ponctuation structure le sens et la respiration de la phrase :\n• Signes simples (.,) : jamais d'espace avant, un espace après.\n• Signes doubles (; : ! ?) : en typographie française soignée, espace fine insécable avant et espace après.\n• Majuscule obligatoire au début de chaque phrase et aux noms propres.",
@@ -117,6 +135,15 @@ object AcademyLessonsSeed {
             pitfallsContent = "Évitez les redondances de connecteurs : « mais cependant » ou « car en effet ».",
             estimatedMinutes = 8
         ),
+        Lesson(
+            id = "b1_synt_01", level = "B1", moduleTitle = "Rapporter des paroles", chapterOrder = 4,
+            theme = "Syntaxe", title = "Le discours rapporté et la concordance des temps",
+            summary = "Passer du discours direct au discours indirect en adaptant pronoms, temps verbaux et repères temporels.",
+            ruleContent = "Lorsque le verbe introducteur est au présent (Il dit que...), les temps ne changent pas. Lorsqu'il est au passé (Il a dit que..., Elle expliquait que...), les temps reculent d'un degré :\n• Présent → Imparfait (« Je viens » → Il a dit qu'il venait).\n• Passé composé → Plus-que-parfait (« J'ai fini » → Elle a affirmé qu'elle avait fini).\n• Futur simple → Conditionnel présent (« Je partirai » → Il a annoncé qu'il partirait).\n• Impératif → de + infinitif (« Relisez ! » → Elle nous a conseillé de relire).\nLes repères temporels s'adaptent : aujourd'hui → ce jour-là ; demain → le lendemain ; hier → la veille.",
+            examplesJson = "Il a déclaré qu'il viendrait le lendemain.||La professeure a précisé que les copies avaient été corrigées la veille.||Elle lui a demandé s'il maîtrisait cette règle.",
+            pitfallsContent = "Ne gardez jamais « est-ce que » dans une interrogation indirecte : « Il demande si tu viens » (et non « Il demande est-ce que tu viens »). « Qu'est-ce que » devient « ce que ».",
+            estimatedMinutes = 10
+        ),
         // B2 — Intermédiaire avancé
         Lesson(
             id = "b2_conj_01", level = "B2", moduleTitle = "Hypothèse et concordance", chapterOrder = 1,
@@ -145,6 +172,15 @@ object AcademyLessonsSeed {
             pitfallsContent = "Attention à « ci-joint » : invariable en début de phrase ou devant un nom sans article (Ci-joint copie de...), variable lorsqu'il est épithète après le nom (Les documents ci-joints).",
             estimatedMinutes = 8
         ),
+        Lesson(
+            id = "b2_synt_01", level = "B2", moduleTitle = "Nuances syntaxiques", chapterOrder = 4,
+            theme = "Syntaxe", title = "La voix passive, la tournure impersonnelle et la mise en relief",
+            summary = "Choisir entre voix active, voix passive et clivage (c'est... qui/que) pour mettre l'accent sur l'information clé.",
+            ruleContent = "La voix passive place l'objet de l'action en position de sujet grâce à l'auxiliaire « être » conjugué au temps voulu + participe passé accordé avec le sujet :\n• Active : Le comité valide le rapport → Passive : Le rapport est validé par le comité.\n• Complément d'agent : introduit par « par » (action précise) ou « de » (sentiment, description : Elle est appréciée de tous).\n• Mise en relief (emphase) : « C'est... qui » met en valeur le sujet ; « C'est... que » met en valeur un complément ; « Ce qui / Ce que... c'est » souligne une idée entière.",
+            examplesJson = "Cette réforme a été adoptée à l'unanimité.||C'est la régularité qui garantit des progrès durables.||Ce que j'apprécie particulièrement, c'est la clarté des exemples.",
+            pitfallsContent = "Seuls les verbes transitifs directs (qui admettent un COD) peuvent être mis à la voix passive. On ne peut pas passiver « obéir » ou « succéder » (préférez la forme active ou « on »).",
+            estimatedMinutes = 10
+        ),
         // C1 — Avancé
         Lesson(
             id = "c1_synt_01", level = "C1", moduleTitle = "Syntaxe soutenue", chapterOrder = 1,
@@ -164,6 +200,24 @@ object AcademyLessonsSeed {
             pitfallsContent = "Attention à « pallier » qui est transitif direct : on écrit « pallier une lacune » (et non « pallier à une lacune »).",
             estimatedMinutes = 10
         ),
+        Lesson(
+            id = "c1_ecrit_01", level = "C1", moduleTitle = "Expression de la nuance", chapterOrder = 3,
+            theme = "Expression écrite", title = "Concession, opposition et restriction dans le discours soutenu",
+            summary = "Nuancer une thèse avec précision grâce aux subordonnées concessives et aux locutions prépositives.",
+            ruleContent = "Savoir concéder un point avant de le dépasser donne une autorité immédiate à l'argumentation :\n• Suivies du subjonctif : bien que, quoique, encore que, sans que, quel(le) que soit, si + adjectif + que (Si complexe que soit ce dossier...).\n• Suivies d'un nom : malgré, en dépit de (Malgré la brièveté du délai...).\n• Suivies de l'indicatif : tandis que, alors que, même si (opposition nette ou hypothétique).\n• Adverbes de reprise : certes... mais, toutefois, néanmoins, il n'en demeure pas moins que.",
+            examplesJson = "En dépit des contraintes calendaires, la qualité éditoriale demeure exemplaire.||Quoique l'hypothèse paraisse audacieuse, elle mérite un examen approfondi.||Certes l'effort initial est exigeant, mais les bénéfices sont durables.",
+            pitfallsContent = "Ne confondez pas « quoique » (en un mot = bien que) et « quoi que » (en deux mots = quelle que soit la chose que : Quoi que vous décidiez).",
+            estimatedMinutes = 11
+        ),
+        Lesson(
+            id = "c1_pro_01", level = "C1", moduleTitle = "Synthèse & Décision", chapterOrder = 4,
+            theme = "Français professionnel", title = "Rédiger une note de synthèse et un compte rendu exécutif",
+            summary = "Condenser plusieurs sources en une note objective, hiérarchisée et orientée vers la décision.",
+            ruleContent = "Une note de synthèse de haut niveau obéit à quatre exigences :\n1. Neutralité analytique : ne jamais paraphraser un seul document ni introduire d'opinion personnelle hors problématique.\n2. Plan apparent et problématisé : introduction brève (contexte + enjeu + annonce du plan), deux ou trois parties équilibrées avec titres informatifs.\n3. Densité nominale maîtrisée : privilégier les nominalisations claires et les verbes précis (corroborer, infirmer, préconiser, arbitrer).\n4. Recommandations actionnables : clore par un tableau ou une liste courte d'options datées.",
+            examplesJson = "Cette note présente les constats majeurs issus de l'audit, puis formule trois axes d'action prioritaires.||Les données recueillies corroborent la nécessité d'une révision trimestrielle.",
+            pitfallsContent = "Évitez le style purement descriptif (« Le document 1 dit que... »). Croisez les idées par thème et bannissez les formules creuses (« il est intéressant de noter que »).",
+            estimatedMinutes = 12
+        ),
         // C2 — Expert
         Lesson(
             id = "c2_style_01", level = "C2", moduleTitle = "Maîtrise stylistique et rhétorique", chapterOrder = 1,
@@ -182,6 +236,24 @@ object AcademyLessonsSeed {
             examplesJson = "Les_étudiants_apprennent le français.||Des // héros et // une histoire passionnante.",
             pitfallsContent = "Évitez le « cuir » ou le « velours » (fausse liaison non étymologique comme « quatre-z-euros »).",
             estimatedMinutes = 9
+        ),
+        Lesson(
+            id = "c2_style_02", level = "C2", moduleTitle = "Rhétorique & Persuasion", chapterOrder = 3,
+            theme = "Style", title = "Figures de style, rythme ternaire et force rhétorique",
+            summary = "Identifier et utiliser avec justesse l'antithèse, la litote, l'anaphore, le chiasme et la gradation.",
+            ruleContent = "Les figures de style ne servent pas d'ornement gratuit : elles sculptent la mémorisation et l'émotion :\n• Antithèse : oppose deux termes pour éclairer un contraste (Écrire vite, relire lentement).\n• Litote : dit moins pour suggérer davantage (« Ce résultat n'est pas négligeable » = il est remarquable).\n• Anaphore : répète un mot en tête de phrases successives pour créer un souffle oratoire.\n• Gradation & rythme ternaire : organise trois éléments de force croissante (Comprendre, pratiquer, maîtriser).",
+            examplesJson = "La brièveté n'est pas l'absence d'idées, mais le refus du superflu.||Observer avec rigueur, analyser avec finesse, conclure avec clarté.",
+            pitfallsContent = "Évitez l'accumulation excessive de métaphores filées contradictoires dans un même paragraphe : privilégiez une image juste et sobre.",
+            estimatedMinutes = 11
+        ),
+        Lesson(
+            id = "c2_vocab_01", level = "C2", moduleTitle = "Précision éditoriale", chapterOrder = 4,
+            theme = "Vocabulaire", title = "Registres de langue, impropriétés fréquentes et élégance éditoriale",
+            summary = "Adapter finement son registre (courant, soutenu, académique) et bannir les calques et impropriétés tenaces.",
+            ruleContent = "Le niveau C2 se reconnaît à la justesse du mot exact dans son registre :\n• Impropriétés courantes à corriger : « s'avérer vrai » (pléonasme → s'avérer exact / se révéler vrai), « risquer de gagner » (risquer implique un danger → avoir des chances de gagner), « baser sur » (préférez « fonder sur »).\n• Calques à éviter : « faire sens » → avoir du sens ; « définitivement » au sens de certainement → assurément / sans conteste ; « en charge de » → chargé de.\n• Cohérence de registre : maintenir un niveau homogène du titre jusqu'à la conclusion sans rupture involontaire.",
+            examplesJson = "Cette démonstration est fondée sur des faits vérifiés et a pleinement du sens.||La réforme s'est révélée fructueuse et a assurément renforcé la clarté des échanges.",
+            pitfallsContent = "Un registre soutenu ne signifie pas un texte ampoulé : la véritable élégance française allie exactitude lexicale, concision et naturel.",
+            estimatedMinutes = 12
         )
     )
 

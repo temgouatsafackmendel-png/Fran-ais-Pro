@@ -163,6 +163,151 @@ object ExercisesAndDictationsSeed {
             expectedAnswer = "tout / toute",
             explanation = "L'adverbe « tout » reste invariable devant une voyelle (« tout émue ») mais varie par euphonie devant un adjectif féminin commençant par une consonne (« toute surprise »).",
             points = 20, difficulty = 5
+        ),
+        // Quiz dédiés aux chapitres du parcours progressif A1 → C2
+        Exercise(
+            id = "ex_path_a1_gram", lessonId = "a1_gram_01", level = "A1", category = "Grammaire",
+            type = "QCM", instruction = "Choisissez le déterminant possessif correct devant voyelle.",
+            promptText = "Elle présente ___ histoire avec beaucoup de clarté.",
+            optionsPipe = "sa|son|ses|la",
+            expectedAnswer = "son",
+            explanation = "Devant un nom féminin singulier commençant par un « h » muet (« histoire »), on emploie « son » par euphonie.",
+            points = 10, difficulty = 1
+        ),
+        Exercise(
+            id = "ex_path_a1_conj", lessonId = "a1_conj_01", level = "A1", category = "Conjugaison",
+            type = "QCM", instruction = "Sélectionnez la forme correcte au présent de l'indicatif.",
+            promptText = "Les apprenants ___ leurs exercices chaque soir.",
+            optionsPipe = "révise|révises|révisent|révisons",
+            expectedAnswer = "révisent",
+            explanation = "Avec un sujet à la 3e personne du pluriel (« Les apprenants »), les verbes du 1er groupe prennent « -ent ».",
+            points = 10, difficulty = 1
+        ),
+        Exercise(
+            id = "ex_path_a1_synt", lessonId = "a1_synt_01", level = "A1", category = "Syntaxe",
+            type = "QCM", instruction = "Choisissez la forme négative correcte.",
+            promptText = "Transformez à la négative : « J'ai un doute. »",
+            optionsPipe = "Je n'ai pas un doute.|Je n'ai pas de doute.|Je ai pas de doute.|Je ne pas ai de doute.",
+            expectedAnswer = "Je n'ai pas de doute.",
+            explanation = "Après une négation (hors verbe être), l'article indéfini « un » devient « de » : « Je n'ai pas de doute. »",
+            points = 10, difficulty = 1
+        ),
+        Exercise(
+            id = "ex_path_a2_imp", lessonId = "a2_conj_02", level = "A2", category = "Conjugaison",
+            type = "QCM", instruction = "Choisissez l'imparfait exact du verbe « étudier ».",
+            promptText = "L'an dernier, nous ___ ensemble à la bibliothèque.",
+            optionsPipe = "étudions|étudiions|étudiait|étudiez",
+            expectedAnswer = "étudiions",
+            explanation = "Radical « étudi- » (de nous étudions) + terminaison « -ions » = « nous étudiions » (avec deux « i »).",
+            points = 12, difficulty = 2
+        ),
+        Exercise(
+            id = "ex_path_a2_ponct", lessonId = "a2_ponct_01", level = "A2", category = "Ponctuation",
+            type = "QCM", instruction = "Repérez la phrase correctement ponctuée.",
+            promptText = "Quelle phrase respecte les règles de ponctuation française ?",
+            optionsPipe = "Les étudiants, travaillent sérieusement.|Les étudiants travaillent ; ils progressent vite.|Les étudiants travaillent , ils progressent.|les étudiants travaillent vite.",
+            expectedAnswer = "Les étudiants travaillent ; ils progressent vite.",
+            explanation = "On ne sépare jamais le sujet du verbe par une virgule unique, et la phrase commence par une majuscule.",
+            points = 12, difficulty = 2
+        ),
+        Exercise(
+            id = "ex_path_b1_pp", lessonId = "b1_gram_01", level = "B1", category = "Grammaire",
+            type = "QCM", instruction = "Accordez le participe passé avec l'auxiliaire « avoir ».",
+            promptText = "Voici les règles que nous avons ___ cette semaine.",
+            optionsPipe = "appris|apprise|apprises|apprit",
+            expectedAnswer = "apprises",
+            explanation = "Le COD « les règles » (féminin pluriel) est placé avant le verbe via « que » : accord en « apprises ».",
+            points = 14, difficulty = 3
+        ),
+        Exercise(
+            id = "ex_path_b1_subj", lessonId = "b1_conj_01", level = "B1", category = "Conjugaison",
+            type = "QCM", instruction = "Complétez au mode exigé par la locution « bien que ».",
+            promptText = "Bien qu'il ___ tard, il relit encore sa rédaction.",
+            optionsPipe = "est|soit|sera|était",
+            expectedAnswer = "soit",
+            explanation = "La conjonction concessive « bien que » impose toujours le subjonctif : « bien qu'il soit tard ».",
+            points = 14, difficulty = 3
+        ),
+        Exercise(
+            id = "ex_path_b1_disc", lessonId = "b1_synt_01", level = "B1", category = "Syntaxe",
+            type = "QCM", instruction = "Transposez au discours indirect au passé.",
+            promptText = "Elle a dit : « Je terminerai demain. » → Elle a dit qu'elle ___.",
+            optionsPipe = "terminera demain|terminerait le lendemain|a terminé hier|terminait demain",
+            expectedAnswer = "terminerait le lendemain",
+            explanation = "Avec un verbe introducteur au passé, le futur simple devient conditionnel présent et « demain » devient « le lendemain ».",
+            points = 14, difficulty = 3
+        ),
+        Exercise(
+            id = "ex_path_b2_pro", lessonId = "b2_pro_01", level = "B2", category = "Style",
+            type = "QCM", instruction = "Choisissez l'accord normatif de « ci-joint ».",
+            promptText = "Veuillez consulter les documents ___ à mon message.",
+            optionsPipe = "ci-joint|ci-joints|ci-jointe|ci-jointes",
+            expectedAnswer = "ci-joints",
+            explanation = "Placé en épithète après le nom masculin pluriel « documents », « ci-joints » s'accorde en genre et en nombre.",
+            points = 15, difficulty = 3
+        ),
+        Exercise(
+            id = "ex_path_b2_pass", lessonId = "b2_synt_01", level = "B2", category = "Syntaxe",
+            type = "QCM", instruction = "Identifiez la mise en relief correcte.",
+            promptText = "Mettez en relief le sujet dans « La régularité fait la différence ».",
+            optionsPipe = "C'est la régularité que fait la différence.|C'est la régularité qui fait la différence.|Ce qui la régularité fait la différence.|C'est de la régularité qui fait la différence.",
+            expectedAnswer = "C'est la régularité qui fait la différence.",
+            explanation = "Pour mettre en valeur un sujet, on utilise la structure clivée « C'est ... qui ».",
+            points = 15, difficulty = 3
+        ),
+        Exercise(
+            id = "ex_path_c1_rel", lessonId = "c1_synt_01", level = "C1", category = "Syntaxe",
+            type = "QCM", instruction = "Sélectionnez le pronom relatif approprié à la construction du verbe.",
+            promptText = "Voici l'objectif ___ nous consacrons toute notre énergie.",
+            optionsPipe = "dont|auquel|duquel|que",
+            expectedAnswer = "auquel",
+            explanation = "On consacre son énergie À un objectif (masculin singulier) : le pronom relatif composé est donc « auquel ».",
+            points = 18, difficulty = 4
+        ),
+        Exercise(
+            id = "ex_path_c1_conc", lessonId = "c1_ecrit_01", level = "C1", category = "Style",
+            type = "QCM", instruction = "Distinguez « quoique » et « quoi que ».",
+            promptText = "___ vous entrepreniez, la méthode reste votre meilleure alliée.",
+            optionsPipe = "Quoique|Quoi que|Malgré que|Bien que",
+            expectedAnswer = "Quoi que",
+            explanation = "« Quoi que » en deux mots signifie « quelle que soit la chose que » (suivi du subjonctif « entrepreniez »).",
+            points = 18, difficulty = 4
+        ),
+        Exercise(
+            id = "ex_path_c1_pro", lessonId = "c1_pro_01", level = "C1", category = "Style",
+            type = "QCM", instruction = "Choisissez le verbe le plus précis pour une note de synthèse.",
+            promptText = "Les mesures d'audience ___ les conclusions de l'étude préliminaire.",
+            optionsPipe = "font vrai|corroborent|mettent bien|disent pareil",
+            expectedAnswer = "corroborent",
+            explanation = "« Corroborer » signifie confirmer et renforcer une analyse par de nouveaux éléments factuels.",
+            points = 18, difficulty = 4
+        ),
+        Exercise(
+            id = "ex_path_c2_oral", lessonId = "c2_oral_01", level = "C2", category = "Compréhension",
+            type = "QCM", instruction = "Repérez la liaison interdite en français standard.",
+            promptText = "Dans quel groupe la liaison est-elle strictement interdite ?",
+            optionsPipe = "les_enfants|ils_apprennent|un grand_homme|des // héros",
+            expectedAnswer = "des // héros",
+            explanation = "Le mot « héros » commence par un « h » aspiré qui interdit toute liaison et toute élision (« le héros », « des // héros »).",
+            points = 20, difficulty = 5
+        ),
+        Exercise(
+            id = "ex_path_c2_rhet", lessonId = "c2_style_02", level = "C2", category = "Style",
+            type = "QCM", instruction = "Identifiez la figure de style employée.",
+            promptText = "« Ce progrès n'est pas négligeable » pour dire « Ce progrès est remarquable » est :",
+            optionsPipe = "Une anaphore|Une litote|Un pléonasme|Une hyperbole",
+            expectedAnswer = "Une litote",
+            explanation = "La litote consiste à dire moins pour laisser entendre beaucoup plus avec retenue et force.",
+            points = 20, difficulty = 5
+        ),
+        Exercise(
+            id = "ex_path_c2_vocab", lessonId = "c2_vocab_01", level = "C2", category = "Vocabulaire",
+            type = "QCM", instruction = "Choisissez la formulation exempte d'impropriété et de calque.",
+            promptText = "Quelle phrase relève d'un français éditorial irréprochable ?",
+            optionsPipe = "Cette analyse fait sens et s'avère vraie.|Cette analyse est fondée sur des faits et a pleinement du sens.|Cette analyse est basée sur du concret définitivement.|Cette analyse risque de réussir rapidement.",
+            expectedAnswer = "Cette analyse est fondée sur des faits et a pleinement du sens.",
+            explanation = "On évite le calque « faire sens », le pléonasme « s'avérer vrai » et l'emploi impropre de « risquer » pour un événement positif.",
+            points = 20, difficulty = 5
         )
     )
 

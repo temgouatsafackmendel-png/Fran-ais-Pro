@@ -1,6 +1,7 @@
 package com.example.core.backup
 
 import androidx.room.withTransaction
+import com.example.core.database.AcademyPracticeDay
 import com.example.core.database.Achievement
 import com.example.core.database.AppSettings
 import com.example.core.database.CorrectionError
@@ -12,6 +13,8 @@ import com.example.core.database.Favorite
 import com.example.core.database.FrancaisProDatabase
 import com.example.core.database.LearningStatistics
 import com.example.core.database.LessonProgress
+import com.example.core.database.StreakReward
+import com.example.core.database.StreakState
 import com.example.core.database.UserProfile
 import com.example.core.database.VocabularyProgress
 import com.squareup.moshi.JsonClass
@@ -35,7 +38,10 @@ data class FrancaisProBackupPayload(
     val learningStatistics: List<LearningStatistics> = emptyList(),
     val favorites: List<Favorite> = emptyList(),
     val correctionHistory: List<CorrectionHistory> = emptyList(),
-    val correctionErrors: List<CorrectionError> = emptyList()
+    val correctionErrors: List<CorrectionError> = emptyList(),
+    val academyPracticeDays: List<AcademyPracticeDay> = emptyList(),
+    val streakState: StreakState? = null,
+    val streakRewards: List<StreakReward> = emptyList()
 )
 
 sealed class BackupResult {
@@ -71,14 +77,18 @@ class BackupManager(
                 learningStatistics = db.statsAndMetaDao().getStatisticsSnapshot(),
                 favorites = db.statsAndMetaDao().getFavoritesSnapshot(),
                 correctionHistory = history,
-                correctionErrors = errors
+                correctionErrors = errors,
+                academyPracticeDays = db.academyStreakDao().getAllPracticeDaysSnapshot(),
+                streakState = db.academyStreakDao().getStreakState(),
+                streakRewards = db.academyStreakDao().getStreakRewardsSnapshot()
             )
             val json = adapter.toJson(payload)
             val count = payload.lessonProgress.size +
                 payload.exerciseAttempts.size +
                 payload.vocabularyProgress.size +
                 payload.favorites.size +
-                payload.correctionHistory.size
+                payload.correctionHistory.size +
+                payload.academyPracticeDays.size
             BackupResult.ExportSuccess(json, count)
         } catch (e: Exception) {
             BackupResult.Failure("Impossible d'exporter la sauvegarde : ${e.message ?: "erreur inconnue"}")
@@ -135,7 +145,9 @@ class BackupManager(
                 if (validated.vocabularyProgress.isNotEmpty()) {
                     db.vocabularyDao().clearProgress()
                     validated.vocabularyProgress.forEach { vp ->
-                        db.vocabularyDao().upsertProgress(vp.copy(id = 0))
+                        if (db.vocabularyDao().getWordById(vp.wordId) != null) {
+                            db.vocabularyDao().upsertProgress(vp.copy(id = 0))
+                        }
                     }
                 }
 
@@ -164,6 +176,19 @@ class BackupManager(
                 if (validated.favorites.isNotEmpty()) {
                     db.statsAndMetaDao().clearFavorites()
                     validated.favorites.forEach { db.statsAndMetaDao().insertFavorite(it.copy(id = 0)) }
+                }
+
+                if (validated.academyPracticeDays.isNotEmpty()) {
+                    db.academyStreakDao().clearPracticeDays()
+                    validated.academyPracticeDays.forEach { db.academyStreakDao().upsertPracticeDay(it) }
+                }
+
+                validated.streakState?.let {
+                    db.academyStreakDao().upsertStreakState(it.copy(id = 1))
+                }
+
+                if (validated.streakRewards.isNotEmpty()) {
+                    db.academyStreakDao().insertStreakRewards(validated.streakRewards)
                 }
 
                 if (validated.includeHistory && validated.correctionHistory.isNotEmpty()) {

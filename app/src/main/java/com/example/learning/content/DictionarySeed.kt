@@ -375,11 +375,111 @@ object DictionarySeed {
     )
 
     fun achievements(): List<Achievement> = listOf(
-        Achievement("ach_first_correction", "Première plume", "Réaliser votre première analyse dans le correcteur hors ligne.", "edit", false, 0L),
-        Achievement("ach_first_lesson", "Premiers pas à l'Académie", "Terminer votre première leçon complète.", "school", false, 0L),
-        Achievement("ach_5_exercises", "Esprit rigoureux", "Réussir 5 exercices sans relâche.", "check_circle", false, 0L),
-        Achievement("ach_first_dictation", "Maître de la dictée", "Compléter votre première dictée locale.", "mic", false, 0L),
-        Achievement("ach_vocab_master", "Lexique vivant", "Réviser au moins 5 mots avec la répétition espacée SM-2.", "book", false, 0L),
-        Achievement("ach_streak_3", "Régularité exemplaire", "Maintenir une série active de 3 jours consécutifs.", "local_fire_department", false, 0L)
+        Achievement(
+            "ach_first_lesson",
+            "Premiers pas à l'Académie",
+            "Terminer votre première leçon complète et son quiz.",
+            "school",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_grammar_guru",
+            "Gourou de la grammaire",
+            "Réussir 3 exercices de grammaire dans l'espace d'entraînement.",
+            "account_tree",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_vocab_master",
+            "Maître du vocabulaire",
+            "Réviser 5 mots en répétition espacée SM-2 ou réussir 3 exercices de vocabulaire et style.",
+            "book",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_orthographe_ace",
+            "As de l'orthographe",
+            "Réussir 2 exercices d'orthographe ou obtenir au moins 14/20 en dictée.",
+            "spellcheck",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_conjugation_pro",
+            "Champion de conjugaison",
+            "Réussir 3 exercices de conjugaison sur les temps et modes.",
+            "schedule",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_5_exercises",
+            "Esprit rigoureux",
+            "Réussir 5 exercices au total sur l'ensemble des catégories.",
+            "check_circle",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_10_exercises",
+            "Athlète linguistique",
+            "Réussir 10 exercices au total pour consolider vos acquis.",
+            "fitness_center",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_perfect_quiz",
+            "Mention très bien",
+            "Obtenir 100 % de réussite au quiz d'un chapitre de l'Académie.",
+            "verified",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_level_master",
+            "Diplômé CECRL",
+            "Valider intégralement tous les chapitres d'un niveau complet (A1 à C2).",
+            "workspace_premium",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_first_correction",
+            "Première plume",
+            "Réaliser votre première analyse dans le correcteur hors ligne.",
+            "edit",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_first_dictation",
+            "Maître de la dictée",
+            "Compléter votre première dictée locale avec évaluation détaillée.",
+            "mic",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_streak_3",
+            "Régularité exemplaire",
+            "Maintenir une série active de 3 jours consécutifs.",
+            "local_fire_department",
+            false,
+            0L
+        ),
+        Achievement(
+            "ach_streak_7",
+            "Semaine d'assiduité",
+            "Maintenir une série de 7 jours de pratique à l'Académie.",
+            "local_fire_department",
+            false,
+            0L
+        )
     )
+
+    fun streakRewards() = com.example.learning.progression.AcademyStreakEngine.defaultRewards()
 }

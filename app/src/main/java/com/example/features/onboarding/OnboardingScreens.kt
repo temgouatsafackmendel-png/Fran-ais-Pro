@@ -27,17 +27,23 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -53,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,9 +67,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.R
@@ -86,16 +97,33 @@ import kotlinx.coroutines.delay
 
 /**
  * Écran 1 : Splash screen minimaliste et instantané.
+ * Attend la fin de l'initialisation locale Room avant de décider Onboarding vs Accueil
+ * afin d'éviter toute redirection prématurée sur appareil lent.
  */
 @Composable
 fun SplashScreen(
     profile: UserProfile?,
+    isSeedReady: Boolean = true,
     onNavigateToOnboarding: () -> Unit,
     onNavigateToDashboard: () -> Unit
 ) {
     val semantic = LocalSemanticColors.current
-    LaunchedEffect(profile?.onboardingCompleted) {
-        delay(650L)
+    var minDelayElapsed by remember { mutableStateOf(false) }
+    var timedOut by remember { mutableStateOf(false) }
+    var hasNavigated by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(550L)
+        minDelayElapsed = true
+        delay(3000L)
+        timedOut = true
+    }
+
+    LaunchedEffect(minDelayElapsed, isSeedReady, profile?.onboardingCompleted, timedOut) {
+        if (hasNavigated || !minDelayElapsed) return@LaunchedEffect
+        val ready = (isSeedReady && profile != null) || timedOut
+        if (!ready) return@LaunchedEffect
+        hasNavigated = true
         if (profile?.onboardingCompleted == true) {
             onNavigateToDashboard()
         } else {
@@ -134,6 +162,14 @@ fun SplashScreen(
                 color = Color.White.copy(alpha = 0.78f),
                 textAlign = TextAlign.Center
             )
+            if (minDelayElapsed && (!isSeedReady || profile == null) && !timedOut) {
+                Spacer(Modifier.height(8.dp))
+                CircularProgressIndicator(
+                    color = Color.White.copy(alpha = 0.85f),
+                    strokeWidth = 2.5.dp,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
     }
 }
@@ -149,22 +185,31 @@ fun OnboardingScreen(
     onFinishOnboarding: (displayName: String, dailyGoalMinutes: Int, placementCorrect: Int?, placementTotal: Int?) -> Unit,
     onSkipToDashboard: (displayName: String) -> Unit
 ) {
-    val totalSteps = 7
-    var step by remember { mutableIntStateOf(0) } // 0..6
-    var displayName by remember { mutableStateOf("") }
-    var selectedGoalMinutes by remember { mutableIntStateOf(15) }
+    val stepTitles = listOf("Bienvenue", "Correcteur", "Académie", "Hors ligne", "Niveau", "Profil", "Objectif")
+    val totalSteps = stepTitles.size
+    var step by rememberSaveable { mutableIntStateOf(0) } // 0..6
+    var displayName by rememberSaveable { mutableStateOf("") }
+    var selectedGoalMinutes by rememberSaveable { mutableIntStateOf(15) }
+    var demoCorrectionApplied by rememberSaveable { mutableStateOf(false) }
 
     // État interne de l'évaluation initiale (étape 5 = index 4)
     val questions = remember { AcademyLessonsSeed.placementQuestions() }
-    var qIndex by remember { mutableIntStateOf(0) }
-    var qSelected by remember { mutableIntStateOf(-1) }
-    var qValidated by remember { mutableStateOf(false) }
-    var qCorrectCount by remember { mutableIntStateOf(0) }
-    var assessmentDone by remember { mutableStateOf(false) }
-    var assessmentTaken by remember { mutableStateOf(false) }
+    var qIndex by rememberSaveable { mutableIntStateOf(0) }
+    var qSelected by rememberSaveable { mutableIntStateOf(-1) }
+    var qValidated by rememberSaveable { mutableStateOf(false) }
+    var qCorrectCount by rememberSaveable { mutableIntStateOf(0) }
+    var assessmentDone by rememberSaveable { mutableStateOf(false) }
+    var assessmentTaken by rememberSaveable { mutableStateOf(false) }
 
     val semantic = LocalSemanticColors.current
     val reducedMotion = LocalReducedMotion.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(step) {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
 
     Column(
         modifier = Modifier
@@ -195,32 +240,53 @@ fun OnboardingScreen(
                 Spacer(Modifier.size(48.dp))
             }
 
-            Text(
-                text = "Étape ${step + 1} sur $totalSteps",
-                style = MaterialTheme.typography.labelMedium,
-                color = semantic.textSecondary
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Étape ${step + 1} sur $totalSteps · ${stepTitles[step]}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = semantic.textSecondary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
 
             TextButton(
-                onClick = { onSkipToDashboard(displayName) },
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    onSkipToDashboard(displayName)
+                },
                 modifier = Modifier.testTag("onboarding_skip_button")
             ) {
                 Text("Ignorer", style = MaterialTheme.typography.labelLarge, color = semantic.textSecondary)
             }
         }
 
-        // Barre de progression discrète
-        LinearProgressIndicator(
-            progress = { (step + 1).toFloat() / totalSteps },
+        // Indicateur segmenté en 7 paliers visuels
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 640.dp)
-                .padding(horizontal = 20.dp)
-                .height(5.dp)
-                .clip(RoundedCornerShape(3.dp)),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = semantic.surfaceSubtle
-        )
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            for (i in 0 until totalSteps) {
+                val active = i == step
+                val passed = i < step
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(
+                            when {
+                                active -> MaterialTheme.colorScheme.primary
+                                passed -> semantic.success
+                                else -> semantic.surfaceSubtle
+                            }
+                        )
+                )
+            }
+        }
 
         AnimatedContent(
             targetState = step,
@@ -279,7 +345,7 @@ fun OnboardingScreen(
                         }
                     }
 
-                    // Étape 2 — Correcteur intelligent
+                    // Étape 2 — Correcteur intelligent avec mini-essai interactif
                     1 -> {
                         OnboardingHeroIcon(Icons.Filled.Spellcheck, semantic.primaryBlue, MaterialTheme.colorScheme.primaryContainer)
                         Text(
@@ -307,19 +373,50 @@ fun OnboardingScreen(
                             Spacer(Modifier.height(12.dp))
                             Surface(
                                 shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
-                                color = semantic.surfaceSubtle,
+                                color = if (demoCorrectionApplied) semantic.successContainer else semantic.surfaceSubtle,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (demoCorrectionApplied) semantic.success.copy(alpha = 0.45f) else semantic.border
+                                ),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    text = "« Ils son parti tôt » → « Ils sont partis tôt »\nExplication claire + exemple vérifié à chaque détection.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(12.dp)
-                                )
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = if (demoCorrectionApplied) {
+                                            "« Ils sont partis tôt. »"
+                                        } else {
+                                            "« Ils son parti tôt. » (2 points détectés)"
+                                        },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (demoCorrectionApplied) {
+                                            "✓ « sont » (auxiliaire être au présent) + « partis » (accord avec le sujet « Ils »)."
+                                        } else {
+                                            "Touchez ci-dessous pour tester la correction locale en direct."
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (demoCorrectionApplied) semantic.onSuccessContainer else semantic.textSecondary
+                                    )
+                                }
                             }
+                            Spacer(Modifier.height(10.dp))
+                            SecondaryButton(
+                                text = if (demoCorrectionApplied) "Réinitialiser l'exemple" else "Tester la correction",
+                                onClick = { demoCorrectionApplied = !demoCorrectionApplied },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("onboarding_try_corrector_btn")
+                            )
                         }
                     }
 
-                    // Étape 3 — Académie
+                    // Étape 3 — Académie + Badges & Réussites
                     2 -> {
                         OnboardingHeroIcon(Icons.Filled.School, semantic.success, semantic.successContainer)
                         Text(
@@ -328,7 +425,7 @@ fun OnboardingScreen(
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            text = "Suivez un parcours structuré de A1 à C2 avec leçons claires, exercices variés, dictées, conjugueur et dictionnaire intégrés.",
+                            text = "Suivez un parcours structuré de A1 à C2 avec cours progressifs, exercices variés, badges de réussite, conjugueur et dictionnaire intégrés.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = semantic.textSecondary
                         )
@@ -343,10 +440,28 @@ fun OnboardingScreen(
                             }
                             Spacer(Modifier.height(12.dp))
                             Text(
-                                "Chaque leçon comprend l'objectif, la règle à retenir, les erreurs fréquentes et un mini-exercice immédiat.",
+                                "Débloquez chaque palier à votre rythme et remportez des badges dédiés à mesure que vous progressez :",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = semantic.textSecondary
                             )
+                            Spacer(Modifier.height(10.dp))
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CategoryBadge(
+                                    label = "Gourou de la grammaire",
+                                    color = semantic.warning,
+                                    containerColor = semantic.warningContainer,
+                                    icon = Icons.Filled.EmojiEvents
+                                )
+                                CategoryBadge(
+                                    label = "Maître du vocabulaire",
+                                    color = semantic.success,
+                                    containerColor = semantic.successContainer,
+                                    icon = Icons.Filled.Verified
+                                )
+                            }
                         }
                     }
 
@@ -370,11 +485,10 @@ fun OnboardingScreen(
                                 verticalAlignment = Alignment.Top
                             ) {
                                 Icon(Icons.Filled.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                Column {
-                                    Text("Confidentialité totale", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                    Spacer(Modifier.height(4.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("Prêt à l'emploi et 100 % confidentiel", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                     Text(
-                                        "Vos textes et statistiques restent stockés localement. Vous pouvez exporter ou restaurer votre sauvegarde JSON quand vous le souhaitez.",
+                                        "• Correcteur linguistique, 24 cours et exercices inclus sur l'appareil\n• Dictionnaire local, recherches récentes et conjugueur immédiats\n• Sauvegarde / restauration JSON à la demande sans connexion",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = semantic.textSecondary
                                     )
@@ -399,6 +513,16 @@ fun OnboardingScreen(
                         if (!assessmentDone) {
                             val q = questions[qIndex]
                             EditorialCard {
+                                LinearProgressIndicator(
+                                    progress = { (qIndex + 1).toFloat() / questions.size },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(5.dp)
+                                        .clip(RoundedCornerShape(3.dp)),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = semantic.surfaceSubtle
+                                )
+                                Spacer(Modifier.height(10.dp))
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -530,6 +654,23 @@ fun OnboardingScreen(
                                 label = { Text("Prénom ou pseudonyme (facultatif)") },
                                 placeholder = { Text("Ex. Claire") },
                                 singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Words,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                    }
+                                ),
+                                trailingIcon = if (displayName.isNotEmpty()) {
+                                    {
+                                        IconButton(onClick = { displayName = "" }) {
+                                            Icon(Icons.Filled.Close, contentDescription = "Effacer le prénom")
+                                        }
+                                    }
+                                } else null,
                                 shape = RoundedCornerShape(FrancaisProDimens.RadiusButton),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -538,7 +679,7 @@ fun OnboardingScreen(
                         }
                     }
 
-                    // Étape 7 — Objectif quotidien
+                    // Étape 7 — Objectif quotidien + Récapitulatif personnalisé
                     else -> {
                         OnboardingHeroIcon(Icons.Filled.Timer, semantic.primaryBlue, MaterialTheme.colorScheme.primaryContainer)
                         Text(
@@ -585,6 +726,39 @@ fun OnboardingScreen(
                                         RadioButton(selected = selected, onClick = { selectedGoalMinutes = mins })
                                     }
                                 }
+                            }
+                        }
+                        val previewLevel = if (assessmentTaken) {
+                            AdaptiveProgressionEngine.estimateLevelFromPlacement(qCorrectCount, questions.size)
+                        } else "A1"
+                        EditorialCard(
+                            containerColor = semantic.surfaceSubtle,
+                            contentPadding = 14.dp,
+                            modifier = Modifier.testTag("onboarding_summary_card")
+                        ) {
+                            Text(
+                                text = "Votre espace prêt sur cet appareil",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CategoryBadge(
+                                    label = displayName.trim().ifBlank { "Apprenant" },
+                                    color = MaterialTheme.colorScheme.primary,
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    icon = Icons.Filled.Person
+                                )
+                                CategoryBadge(
+                                    label = "$selectedGoalMinutes min / jour",
+                                    color = semantic.success,
+                                    containerColor = semantic.successContainer,
+                                    icon = Icons.Filled.Timer
+                                )
+                                CefrLevelPill(level = previewLevel)
                             }
                         }
                     }

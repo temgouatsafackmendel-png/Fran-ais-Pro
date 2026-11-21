@@ -8,7 +8,7 @@
 
 **Projet réalisé de bout en bout par Temgoua Mendel** — conception produit, Design System Material 3, moteur linguistique français embarqué, architecture Android, tests et packaging APK.
 
-[![Version](https://img.shields.io/badge/Version-1.1.0-356AE6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-1.2.0-356AE6?style=flat-square)](CHANGELOG.md)
 [![Plateforme](https://img.shields.io/badge/Plateforme-Android%207.0%2B%20(API%2024--36)-356AE6?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4.21-7C3AED?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose%20%2B%20Material%203-101B36?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
@@ -52,13 +52,13 @@
 
 | Module | Capacités clés (100 % hors ligne) |
 | :--- | :--- |
-| **Correcteur linguistique hybride** | Détection orthographe, grammaire, accords, conjugaison, ponctuation, homophones et style ; surlignage interactif 4 couleurs (`#DC4545`, `#F59E0B`, `#7C3AED`, `#356AE6`), `BottomSheet` explicatif, application en un geste, comparaison Avant/Après et historique Room. |
-| **Académie CECRL (A1 → C2)** | Leçons structurées en 8 sections (objectif, règle, exemples, pièges, mini-exercice intégré, récapitulatif) et suivi de complétion par niveau. |
-| **10 formats d'exercices** | QCM, texte à trous, correction de phrase, accords, conjugaison, homophones, ponctuation, ordre des mots, transformation de phrase et vocabulaire, avec écran de bilan et révision ciblée. |
+| **Correcteur & Studio d'écriture** | Détection orthographe, grammaire, accords, conjugaison, ponctuation, homophones et style ; jauge circulaire `/ 100`, métriques de lisibilité en direct, filtres par catégorie d'erreur, surlignage interactif 4 couleurs, `BottomSheet` explicatif, comparaison Avant/Après et historique Room. |
+| **Académie progressive CECRL (A1 → C2)** | 24 vrais cours complets (4 chapitres par niveau) à déblocage séquentiel par chapitre et par niveau, frise visuelle, XP de palier, 7 sections numérotées avec icônes modernes, mini-exercice intégré et quiz de validation (≥ 60 %). |
+| **Exercices, Défi Express & Missions du jour** | 10 formats interactifs, mode **Défi Express (5 questions)** avec suivi de combo en direct, **Missions du jour** sur l'Accueil, écran de bilan et révision ciblée. |
 | **Dictées progressives** | Synthèse vocale locale (`TextToSpeech` `fr-FR`) avec repli visuel automatique si aucune voix française n'est installée, comparaison mot à mot et score de précision. |
 | **Conjugueur & Recherche inverse** | Conjugaison multi-temps/modes (indicatif, subjonctif, conditionnel, impératif, participe), mise en évidence des verbes irréguliers et identification d'une forme conjuguée. |
-| **Dictionnaire Room hors ligne** | 48 entrées A1–C2 indexées dans SQLite : recherche instantanée par mot (sans accents), définitions, synonymes et antonymes, suggestions floues, liens cliquables entre synonymes/antonymes, ajout de mots personnels, favoris et **Mot du jour** sur l'Accueil. |
-| **Vocabulaire intelligent (SM-2)** | Cartes mémoire à répétition espacée (algorithme SM-2), ajout de mots personnels et file de révision quotidienne. |
+| **Dictionnaire Room hors ligne** | 48 entrées A1–C2 indexées dans SQLite (base Room v2) : recherche instantanée par mot, définitions, synonymes et antonymes, **historique persistant des 10 dernières recherches**, suggestions floues, ajout de mots personnels, favoris et **Mot du jour** sur l'Accueil. |
+| **Vocabulaire intelligent (SM-2)** | Cartes mémoire à répétition espacée (algorithme SM-2), barre de maîtrise globale, ajout de mots personnels et file de révision quotidienne. |
 | **Atelier de rédaction** | 10 modèles guidés (e-mail professionnel, lettre de motivation, résumé, dissertation, rapport, etc.) reliés au correcteur intégré et sauvegardés en local. |
 | **Expression orale** | Lecture à haute voix guidée, entraînement à l'articulation, virelangues, liaison et écoute modèle via TTS local. |
 | **Statistiques & Progression** | 4 graphiques natifs Canvas interactifs alimentés par Room (activité hebdomadaire avec infobulles, anneau de répartition des erreurs, courbe d'évolution, maîtrise par compétence), série quotidienne et objectifs réalistes. |

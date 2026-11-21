@@ -2,8 +2,10 @@ package com.example.features.correction
 
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -18,21 +20,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -41,12 +49,15 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -68,13 +79,17 @@ import com.example.core.design.ErrorDetailBottomSheet
 import com.example.core.design.ErrorHighlightText
 import com.example.core.design.PrimaryButton
 import com.example.core.design.SecondaryButton
+import com.example.core.design.SectionHeader
 import com.example.core.design.SuccessFeedback
 import com.example.linguistics.analysis.DiffType
+import com.example.linguistics.analysis.TextReadabilityAnalyzer
 import com.example.linguistics.model.CorrectionCategory
 import com.example.linguistics.model.CorrectionIssue
+import kotlinx.coroutines.delay
 import com.example.ui.theme.FrancaisProDimens
 import com.example.ui.theme.FrancaisProTextStyles
 import com.example.ui.theme.LocalSemanticColors
+import com.example.ui.theme.LocalSpacing
 
 /**
  * Écran 5 : Correcteur intelligent — Éditeur confortable, compteurs en direct, surlignage interactif & BottomSheet.
@@ -103,12 +118,35 @@ fun CorrectorScreen(
 
     var inspectedIssue by remember { mutableStateOf<CorrectionIssue?>(null) }
     var showClearConfirm by remember { mutableStateOf(false) }
+    var selectedIssueFilter by remember { mutableStateOf("ALL") }
+    var copiedFeedback by remember { mutableStateOf(false) }
 
-    val wordCount = remember(uiState.inputText) {
-        if (uiState.inputText.isBlank()) 0
-        else uiState.inputText.trim().split(Regex("\\s+")).size
+    LaunchedEffect(copiedFeedback) {
+        if (copiedFeedback) {
+            delay(1800)
+            copiedFeedback = false
+        }
     }
-    val charCount = uiState.inputText.length
+
+    val readability = remember(uiState.inputText) {
+        TextReadabilityAnalyzer.analyze(uiState.inputText)
+    }
+    val wordCount = readability.wordCount
+    val charCount = readability.characterCount
+
+    val filteredIssues = remember(uiState.activeIssues, selectedIssueFilter) {
+        when (selectedIssueFilter) {
+            "ORTHO" -> uiState.activeIssues.filter { it.category == CorrectionCategory.ORTHOGRAPHE }
+            "GRAM" -> uiState.activeIssues.filter {
+                it.category == CorrectionCategory.GRAMMAIRE || it.category == CorrectionCategory.CONJUGAISON
+            }
+            "SYNTAX" -> uiState.activeIssues.filter {
+                it.category == CorrectionCategory.SYNTAXE || it.category == CorrectionCategory.PONCTUATION
+            }
+            "STYLE" -> uiState.activeIssues.filter { it.category == CorrectionCategory.STYLE }
+            else -> uiState.activeIssues
+        }
+    }
 
     if (showClearConfirm) {
         ConfirmationDialog(
@@ -132,20 +170,21 @@ fun CorrectorScreen(
         )
     }
 
+    val spacing = LocalSpacing.current
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter
     ) {
-        val hPadding = FrancaisProDimens.screenHorizontalPadding(maxWidth)
+        val hPadding = spacing.screenHorizontalPadding(maxWidth)
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = FrancaisProDimens.MaxContentWidth)
+                .widthIn(max = spacing.maxContentWidth)
                 .testTag("corrector_list"),
-            contentPadding = PaddingValues(horizontal = hPadding, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(horizontal = hPadding, vertical = spacing.space16),
+            verticalArrangement = Arrangement.spacedBy(spacing.space16)
         ) {
             // En-tête sobre
             item {
@@ -162,7 +201,7 @@ fun CorrectorScreen(
                             color = semantic.textSecondary
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         AppIconButton(
                             icon = Icons.Filled.EditNote,
                             contentDescription = "Atelier de rédaction",
@@ -199,13 +238,13 @@ fun CorrectorScreen(
 
             // Zone d'édition centrée sur le texte + compteurs + barre d'actions
             item {
-                EditorialCard(contentPadding = 16.dp) {
+                EditorialCard(contentPadding = spacing.space16, elevated = true) {
                     OutlinedTextField(
                         value = uiState.inputText,
                         onValueChange = onTextChange,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(190.dp)
+                            .height(156.dp)
                             .testTag("corrector_text_input"),
                         textStyle = MaterialTheme.typography.bodyLarge,
                         shape = RoundedCornerShape(FrancaisProDimens.RadiusButton),
@@ -234,6 +273,57 @@ fun CorrectorScreen(
                     }
 
                     Spacer(Modifier.height(10.dp))
+
+                    // Indicateurs rédactionnels en temps réel (lisibilité, phrases, temps de lecture)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("corrector_readability_bar"),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CategoryBadge(
+                            label = readability.clarityLabel,
+                            color = when {
+                                readability.wordCount == 0 -> semantic.textSecondary
+                                readability.avgWordsPerSentence <= 16 -> semantic.success
+                                readability.avgWordsPerSentence <= 24 -> MaterialTheme.colorScheme.primary
+                                else -> semantic.warning
+                            },
+                            containerColor = when {
+                                readability.wordCount == 0 -> semantic.surfaceSubtle
+                                readability.avgWordsPerSentence <= 16 -> semantic.successContainer
+                                readability.avgWordsPerSentence <= 24 -> MaterialTheme.colorScheme.primaryContainer
+                                else -> semantic.warningContainer
+                            }
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Schedule,
+                                contentDescription = null,
+                                tint = semantic.textSecondary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "${readability.sentenceCount} phr. · lecture ${readability.readingTimeLabel}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = semantic.textSecondary
+                            )
+                        }
+                        if (copiedFeedback) {
+                            CategoryBadge(
+                                label = "Copié",
+                                color = semantic.success,
+                                containerColor = semantic.successContainer,
+                                icon = Icons.Filled.Check
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(6.dp))
 
                     // Compteurs en temps réel + actions sobres
                     Row(
@@ -276,7 +366,10 @@ fun CorrectorScreen(
                                 icon = Icons.Filled.ContentCopy,
                                 contentDescription = "Copier",
                                 enabled = uiState.inputText.isNotBlank(),
-                                onClick = { clipboard.setText(AnnotatedString(uiState.inputText)) },
+                                onClick = {
+                                    clipboard.setText(AnnotatedString(uiState.inputText))
+                                    copiedFeedback = true
+                                },
                                 modifier = Modifier.testTag("corrector_copy_btn")
                             )
                             AppIconButton(
@@ -336,7 +429,7 @@ fun CorrectorScreen(
 
             val report = uiState.report
             if (report != null && !uiState.isAnalyzing) {
-                // Résumé du score + codes couleur par catégorie + texte surligné interactif
+                // Résumé du score avec jauge circulaire + codes couleur + texte surligné interactif
                 item {
                     EditorialCard {
                         Row(
@@ -344,17 +437,24 @@ fun CorrectorScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(
-                                    text = "Qualité : ${report.qualityScore} / 100",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "${uiState.activeIssues.size} point(s) relevé(s) · ${report.analysisDurationMs} ms",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = semantic.textSecondary
-                                )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                QualityScoreRing(score = report.qualityScore)
+                                Column {
+                                    Text(
+                                        text = "Qualité : ${report.qualityScore} / 100",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${uiState.activeIssues.size} point(s) relevé(s) · ${report.analysisDurationMs} ms",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = semantic.textSecondary
+                                    )
+                                }
                             }
                             if (uiState.activeIssues.isNotEmpty()) {
                                 PrimaryButton(
@@ -386,7 +486,7 @@ fun CorrectorScreen(
                             ) {
                                 ErrorHighlightText(
                                     text = uiState.inputText,
-                                    issues = uiState.activeIssues,
+                                    issues = filteredIssues.ifEmpty { uiState.activeIssues },
                                     onIssueClick = { inspectedIssue = it },
                                     modifier = Modifier.padding(14.dp)
                                 )
@@ -403,7 +503,43 @@ fun CorrectorScreen(
                         )
                     }
                 } else {
-                    items(uiState.activeIssues, key = { it.id }) { issue ->
+                    item(key = "issue_category_filters") {
+                        val orthoCount = uiState.activeIssues.count { it.category == CorrectionCategory.ORTHOGRAPHE }
+                        val gramCount = uiState.activeIssues.count {
+                            it.category == CorrectionCategory.GRAMMAIRE || it.category == CorrectionCategory.CONJUGAISON
+                        }
+                        val syntaxCount = uiState.activeIssues.count {
+                            it.category == CorrectionCategory.SYNTAXE || it.category == CorrectionCategory.PONCTUATION
+                        }
+                        val styleCount = uiState.activeIssues.count { it.category == CorrectionCategory.STYLE }
+                        val filterSpecs = listOf(
+                            Triple("ALL", "Toutes (${uiState.activeIssues.size})", uiState.activeIssues.size),
+                            Triple("ORTHO", "Orthographe ($orthoCount)", orthoCount),
+                            Triple("GRAM", "Grammaire ($gramCount)", gramCount),
+                            Triple("SYNTAX", "Syntaxe ($syntaxCount)", syntaxCount),
+                            Triple("STYLE", "Style ($styleCount)", styleCount)
+                        ).filter { it.first == "ALL" || it.third > 0 }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SectionHeader(
+                                title = "Points détectés",
+                                subtitle = "Filtrez par domaine linguistique pour corriger méthodiquement",
+                                icon = Icons.Filled.FilterList
+                            )
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(filterSpecs, key = { it.first }) { (key, label, _) ->
+                                    FilterChip(
+                                        selected = selectedIssueFilter == key,
+                                        onClick = { selectedIssueFilter = key },
+                                        label = { Text(label) },
+                                        modifier = Modifier.testTag("corrector_filter_$key")
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    items(filteredIssues, key = { it.id }) { issue ->
                         CorrectionCard(
                             issue = issue,
                             onAccept = { onAcceptIssue(issue) },
@@ -414,6 +550,49 @@ fun CorrectorScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun QualityScoreRing(score: Int) {
+    val semantic = LocalSemanticColors.current
+    val clamped = score.coerceIn(0, 100)
+    val ringColor = when {
+        clamped >= 85 -> semantic.success
+        clamped >= 65 -> MaterialTheme.colorScheme.primary
+        else -> semantic.warning
+    }
+    val trackColor = semantic.surfaceSubtle
+
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .testTag("corrector_quality_ring"),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val stroke = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round)
+            drawArc(
+                color = trackColor,
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = stroke
+            )
+            drawArc(
+                color = ringColor,
+                startAngle = -90f,
+                sweepAngle = 360f * (clamped / 100f),
+                useCenter = false,
+                style = stroke
+            )
+        }
+        Text(
+            text = "$clamped",
+            style = FrancaisProTextStyles.MonoMetric,
+            fontWeight = FontWeight.Bold,
+            color = ringColor
+        )
     }
 }
 
@@ -631,10 +810,40 @@ private fun CategoryBreakdownRow(issues: List<CorrectionIssue>) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        CategoryBadge("Orthographe · $spellingCount", semantic.spellingColor, semantic.spellingContainer)
-        CategoryBadge("Grammaire · $grammarCount", semantic.grammarColor, semantic.grammarContainer)
-        CategoryBadge("Syntaxe · $syntaxCount", semantic.syntaxColor, semantic.syntaxContainer)
-        CategoryBadge("Style · $styleCount", semantic.styleColor, semantic.styleContainer)
+        SemanticCategoryDotBadge("Orthographe · $spellingCount", semantic.spellingColor, semantic.spellingContainer)
+        SemanticCategoryDotBadge("Grammaire · $grammarCount", semantic.grammarColor, semantic.grammarContainer)
+        SemanticCategoryDotBadge("Syntaxe · $syntaxCount", semantic.syntaxColor, semantic.syntaxContainer)
+        SemanticCategoryDotBadge("Style · $styleCount", semantic.styleColor, semantic.styleContainer)
+    }
+}
+
+@Composable
+private fun SemanticCategoryDotBadge(
+    label: String,
+    color: androidx.compose.ui.graphics.Color,
+    containerColor: androidx.compose.ui.graphics.Color
+) {
+    Surface(
+        shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
+        color = containerColor
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .background(color, CircleShape)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = color,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }
 

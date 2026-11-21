@@ -68,18 +68,23 @@ object FrancaisProPalette {
         val background = BackgroundLight
         val surface = SurfaceLight
         val elevatedSurface = ElevatedSurfaceLight
+        val surfaceSubtle = SurfaceSubtleLight
         val textPrimary = TextPrimaryLight
         val textSecondary = TextSecondaryLight
         val success = SuccessLight
         val warning = WarningLight
         val error = ErrorLight
+        val syntaxViolet = SyntaxVioletLight
+        val styleBlue = PrimaryBlue
         val border = BorderLight
     }
 
     object Dark {
+        val primaryNavy = PrimaryNavy
         val background = BackgroundDark
         val surface = SurfaceDark
         val elevatedSurface = ElevatedSurfaceDark
+        val surfaceSubtle = SurfaceSubtleDark
         val textPrimary = TextPrimaryDark
         val textSecondary = TextSecondaryDark
         val primaryBlue = PrimaryBlueDark
@@ -87,6 +92,8 @@ object FrancaisProPalette {
         val success = SuccessDark
         val warning = WarningDark
         val error = ErrorDark
+        val syntaxViolet = SyntaxVioletDark
+        val styleBlue = PrimaryBlueDark
         val border = BorderDark
     }
 }

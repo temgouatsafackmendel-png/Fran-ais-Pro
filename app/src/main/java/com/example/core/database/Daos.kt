@@ -42,6 +42,9 @@ interface LessonDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLessons(lessons: List<Lesson>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertLessonsIgnore(lessons: List<Lesson>)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProgress(progress: LessonProgress)
 
@@ -71,6 +74,9 @@ interface ExerciseDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExercises(exercises: List<Exercise>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertExercisesIgnore(exercises: List<Exercise>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAttempt(attempt: ExerciseAttempt)
@@ -300,6 +306,9 @@ interface VocabularyDao {
     @Query("SELECT * FROM vocabulary_progress")
     suspend fun getAllProgressSnapshot(): List<VocabularyProgress>
 
+    @Query("SELECT * FROM vocabulary_words WHERE id = :wordId")
+    suspend fun getWordById(wordId: String): VocabularyWord?
+
     @Query("SELECT * FROM vocabulary_progress WHERE wordId = :wordId")
     suspend fun getProgress(wordId: String): VocabularyProgress?
 
@@ -372,6 +381,9 @@ interface StatsAndMetaDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAchievements(achievements: List<Achievement>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAchievementsIgnore(achievements: List<Achievement>)
+
     @Update
     suspend fun updateAchievement(achievement: Achievement)
 
@@ -416,4 +428,46 @@ interface StatsAndMetaDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSettings(settings: AppSettings)
+}
+
+@Dao
+interface AcademyStreakDao {
+    @Query("SELECT * FROM streak_state WHERE id = 1")
+    fun observeStreakState(): Flow<StreakState?>
+
+    @Query("SELECT * FROM streak_state WHERE id = 1")
+    suspend fun getStreakState(): StreakState?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertStreakState(state: StreakState)
+
+    @Query("SELECT * FROM academy_practice_days ORDER BY epochDay DESC LIMIT 30")
+    fun observeRecentPracticeDays(): Flow<List<AcademyPracticeDay>>
+
+    @Query("SELECT * FROM academy_practice_days ORDER BY epochDay DESC")
+    suspend fun getAllPracticeDaysSnapshot(): List<AcademyPracticeDay>
+
+    @Query("SELECT * FROM academy_practice_days WHERE epochDay = :epochDay")
+    suspend fun getPracticeDay(epochDay: Long): AcademyPracticeDay?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertPracticeDay(day: AcademyPracticeDay)
+
+    @Query("DELETE FROM academy_practice_days")
+    suspend fun clearPracticeDays()
+
+    @Query("SELECT * FROM streak_rewards ORDER BY requiredStreakDays ASC")
+    fun observeStreakRewards(): Flow<List<StreakReward>>
+
+    @Query("SELECT * FROM streak_rewards ORDER BY requiredStreakDays ASC")
+    suspend fun getStreakRewardsSnapshot(): List<StreakReward>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertStreakRewardsIgnore(rewards: List<StreakReward>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertStreakRewards(rewards: List<StreakReward>)
+
+    @Update
+    suspend fun updateStreakReward(reward: StreakReward)
 }

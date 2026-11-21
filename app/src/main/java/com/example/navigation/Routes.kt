@@ -29,6 +29,7 @@ object Routes {
     const val WRITING = "writing"
     const val SPEAKING = "speaking"
     const val STATISTICS = "statistics"
+    const val PERFORMANCE_OVERVIEW = "performance_overview"
     const val HISTORY = "history"
     const val FAVORITES = "favorites"
     const val SETTINGS = "settings"

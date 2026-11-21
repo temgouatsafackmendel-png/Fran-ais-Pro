@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -140,7 +141,7 @@ fun WritingWorkshopScreen(
                             val rep = correctionEngine.analyze(draftText)
                             reportIssues = rep.issues
                             analyzed = true
-                            onSaveSession(selectedTemplate.starterDraft, draftText, rep.issues, appliedCount)
+                            onSaveSession(draftText, draftText, rep.issues, appliedCount)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -210,6 +211,10 @@ fun SpeakingScreen(
     ) { granted ->
         hasAudioPermission = granted
         if (granted) onStartListening()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { onStopListening() }
     }
 
     val comparison = remember(drill.sentence, recognizedText) {

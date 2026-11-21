@@ -21,10 +21,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -80,21 +86,36 @@ fun ProgressCard(
     modifier: Modifier = Modifier
 ) {
     val semantic = LocalSemanticColors.current
+    val spacing = com.example.ui.theme.LocalSpacing.current
     val reducedMotion = LocalReducedMotion.current
     val rawProgress = (todayMinutes.toFloat() / dailyTargetMinutes.coerceAtLeast(5)).coerceIn(0f, 1f)
+    val goalReached = todayMinutes >= dailyTargetMinutes && dailyTargetMinutes > 0
     val animatedProgress by animateFloatAsState(
         targetValue = rawProgress,
         animationSpec = tween(if (reducedMotion) 0 else 240),
         label = "daily_goal_progress"
+    )
+    val heroBrush = Brush.linearGradient(
+        colors = listOf(
+            semantic.navyHeader,
+            semantic.navyHeader,
+            semantic.primaryBlue.copy(alpha = 0.24f)
+        )
     )
 
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(FrancaisProDimens.RadiusSurface),
         color = semantic.navyHeader,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+        shadowElevation = spacing.elevatedCardElevation,
+        border = BorderStroke(spacing.borderWidth, Color.White.copy(alpha = 0.10f))
     ) {
-        Column(modifier = Modifier.padding(FrancaisProDimens.Space20)) {
+        Column(
+            modifier = Modifier
+                .background(semantic.navyHeader)
+                .background(heroBrush)
+                .padding(spacing.space20)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -112,31 +133,63 @@ fun ProgressCard(
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
-                    color = Color.White.copy(alpha = 0.12f)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    if (goalReached) {
+                        Surface(
+                            shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
+                            color = semantic.success.copy(alpha = 0.22f),
+                            border = BorderStroke(1.dp, semantic.success.copy(alpha = 0.45f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.CheckCircle,
+                                    contentDescription = "Objectif atteint",
+                                    tint = semantic.success,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Objectif ✓",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = semantic.onNavyHeader,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
+                        color = Color.White.copy(alpha = 0.12f)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.LocalFireDepartment,
-                            contentDescription = "Série active",
-                            tint = semantic.warning,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = "$streakDays j",
-                            style = FrancaisProTextStyles.MonoMetric,
-                            color = semantic.onNavyHeader
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.LocalFireDepartment,
+                                contentDescription = "Série active",
+                                tint = semantic.warning,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "$streakDays j",
+                                style = FrancaisProTextStyles.MonoMetric,
+                                color = semantic.onNavyHeader
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(spacing.space16))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -171,14 +224,16 @@ fun ProgressCard(
                     )
                     Text(
                         text = "$todayMinutes / $dailyTargetMinutes min",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = semantic.onNavyHeader,
-                        fontWeight = FontWeight.Bold
+                        style = FrancaisProTextStyles.MonoMetric.copy(
+                            fontSize = MaterialTheme.typography.titleSmall.fontSize,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = semantic.onNavyHeader
                     )
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(spacing.space12))
 
             val trackColor = Color.White.copy(alpha = 0.16f)
             val fillColor = semantic.success
@@ -195,7 +250,7 @@ fun ProgressCard(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(spacing.space16))
 
             PrimaryButton(
                 text = ctaLabel,
@@ -212,7 +267,8 @@ fun ProgressCard(
 }
 
 /**
- * 8. LevelCard — Carte de parcours CECRL (Académie).
+ * 8. LevelCard — Carte de parcours CECRL (Académie) avec état verrouillé / actif / validé,
+ * icône moderne du niveau, XP et aperçu du prochain chapitre.
  */
 @Composable
 fun LevelCard(
@@ -224,14 +280,44 @@ fun LevelCard(
     nextLessonTitle: String?,
     skillsPreview: List<String>,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLocked: Boolean = false,
+    lockReason: String? = null,
+    xpEarned: Int = 0,
+    icon: ImageVector = CurriculumIcons.forLevel(level)
 ) {
     val semantic = LocalSemanticColors.current
     val ratio = if (totalCount == 0) 0f else completedCount.toFloat() / totalCount
     val percent = (ratio * 100).toInt()
     val isMastered = totalCount > 0 && completedCount == totalCount
 
-    EditorialCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
+    val cardContainerColor = when {
+        isLocked -> semantic.surfaceSubtle.copy(alpha = 0.72f)
+        isMastered -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.surface
+    }
+    val cardBorderColor = when {
+        isLocked -> semantic.border.copy(alpha = 0.7f)
+        isMastered -> semantic.success.copy(alpha = 0.45f)
+        else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+    }
+    val iconContainer = when {
+        isLocked -> semantic.border.copy(alpha = 0.45f)
+        isMastered -> semantic.successContainer
+        else -> MaterialTheme.colorScheme.primaryContainer
+    }
+    val iconTint = when {
+        isLocked -> semantic.textSecondary
+        isMastered -> semantic.success
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    EditorialCard(
+        onClick = onClick,
+        containerColor = cardContainerColor,
+        borderColor = cardBorderColor,
+        modifier = modifier.fillMaxWidth()
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -242,34 +328,84 @@ fun LevelCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                CefrLevelPill(level = level)
-                Column {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = iconContainer,
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isLocked) Icons.Filled.Lock else icon,
+                            contentDescription = if (isLocked) "Niveau $level verrouillé" else "Niveau $level",
+                            tint = iconTint,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        CefrLevelPill(level = level)
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isLocked) semantic.textSecondary else MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "$totalCount leçons · $difficultyLabel",
+                        text = "$completedCount / $totalCount cours · $difficultyLabel",
                         style = MaterialTheme.typography.bodySmall,
                         color = semantic.textSecondary
                     )
                 }
             }
-            if (isMastered) {
-                CategoryBadge("Validé", semantic.success, semantic.successContainer, icon = Icons.Filled.CheckCircle)
-            } else {
-                Text(
-                    text = "$percent %",
-                    style = FrancaisProTextStyles.MonoMetric,
-                    color = MaterialTheme.colorScheme.primary
-                )
+            when {
+                isLocked -> {
+                    CategoryBadge(
+                        label = "Verrouillé",
+                        color = semantic.textSecondary,
+                        containerColor = semantic.border.copy(alpha = 0.4f),
+                        icon = Icons.Filled.Lock
+                    )
+                }
+                isMastered -> {
+                    CategoryBadge(
+                        label = "Validé",
+                        color = semantic.success,
+                        containerColor = semantic.successContainer,
+                        icon = Icons.Filled.Verified
+                    )
+                }
+                else -> {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "$percent %",
+                            style = FrancaisProTextStyles.MonoMetric,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (xpEarned > 0) {
+                            Text(
+                                text = "+$xpEarned XP",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = semantic.success,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
-        val trackColor = semantic.surfaceSubtle
+        val trackColor = if (isLocked) semantic.border.copy(alpha = 0.4f) else semantic.surfaceSubtle
         val barColor = if (isMastered) semantic.success else MaterialTheme.colorScheme.primary
         Canvas(
             modifier = Modifier
@@ -278,7 +414,7 @@ fun LevelCard(
         ) {
             val r = CornerRadius(size.height / 2f, size.height / 2f)
             drawRoundRect(color = trackColor, size = size, cornerRadius = r)
-            if (ratio > 0f) {
+            if (ratio > 0f && !isLocked) {
                 drawRoundRect(color = barColor, size = Size(size.width * ratio, size.height), cornerRadius = r)
             }
         }
@@ -286,7 +422,7 @@ fun LevelCard(
         if (skillsPreview.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "Compétences : ${skillsPreview.joinToString(" · ")}",
+                text = "Notions : ${skillsPreview.joinToString(" · ")}",
                 style = MaterialTheme.typography.bodySmall,
                 color = semantic.textSecondary,
                 maxLines = 1,
@@ -294,11 +430,38 @@ fun LevelCard(
             )
         }
 
-        if (!nextLessonTitle.isNullOrBlank()) {
-            Spacer(Modifier.height(8.dp))
+        if (isLocked && !lockReason.isNullOrBlank()) {
+            Spacer(Modifier.height(10.dp))
             Surface(
                 shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
-                color = semantic.surfaceSubtle,
+                color = semantic.border.copy(alpha = 0.25f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = semantic.textSecondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = lockReason,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = semantic.textSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        } else if (!nextLessonTitle.isNullOrBlank()) {
+            Spacer(Modifier.height(10.dp))
+            Surface(
+                shape = RoundedCornerShape(FrancaisProDimens.RadiusSmall),
+                color = if (isMastered) semantic.successContainer.copy(alpha = 0.55f) else semantic.surfaceSubtle,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -306,18 +469,30 @@ fun LevelCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = if (isMastered) "Réviser : $nextLessonTitle" else "Suivante : $nextLessonTitle",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
-                    )
+                    ) {
+                        Icon(
+                            imageVector = if (isMastered) Icons.Filled.Bolt else Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = if (isMastered) semantic.success else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (isMastered) "Réviser : $nextLessonTitle" else "Prochain cours : $nextLessonTitle",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = if (isMastered) semantic.success else MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -327,7 +502,8 @@ fun LevelCard(
 }
 
 /**
- * 9. LessonCard — Carte de leçon claire avec statut, thème et durée.
+ * 9. LessonCard — Carte de chapitre structurée avec icône thématique moderne, numéro de chapitre,
+ * durée et statut d'accès progressif (Validée / En cours / Verrouillé).
  */
 @Composable
 fun LessonCard(
@@ -339,36 +515,121 @@ fun LessonCard(
     isCompleted: Boolean,
     scorePercent: Int?,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    chapterNumber: Int? = null,
+    isLocked: Boolean = false,
+    isCurrent: Boolean = false,
+    lockReason: String? = null
 ) {
     val semantic = LocalSemanticColors.current
-    EditorialCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
+    val (themeColor, themeBg) = CurriculumIcons.themeAccent(
+        theme = theme,
+        semantic = semantic,
+        primary = MaterialTheme.colorScheme.primary,
+        primaryContainer = MaterialTheme.colorScheme.primaryContainer
+    )
+    val themeIcon = CurriculumIcons.forTheme(theme)
+
+    val containerColor = when {
+        isLocked -> semantic.surfaceSubtle.copy(alpha = 0.7f)
+        isCurrent -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.surface
+    }
+    val borderColor = when {
+        isLocked -> semantic.border.copy(alpha = 0.65f)
+        isCurrent -> MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+        isCompleted -> semantic.success.copy(alpha = 0.4f)
+        else -> semantic.border
+    }
+
+    EditorialCard(
+        onClick = onClick,
+        containerColor = containerColor,
+        borderColor = borderColor,
+        modifier = modifier.fillMaxWidth()
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                CefrLevelPill(level = level)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isLocked) semantic.border.copy(alpha = 0.4f) else themeBg,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isLocked) Icons.Filled.Lock else themeIcon,
+                            contentDescription = null,
+                            tint = if (isLocked) semantic.textSecondary else themeColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                if (chapterNumber != null) {
+                    CategoryBadge(
+                        label = "Chap. ${chapterNumber.toString().padStart(2, '0')}",
+                        color = if (isLocked) semantic.textSecondary else MaterialTheme.colorScheme.primary,
+                        containerColor = if (isLocked) semantic.border.copy(alpha = 0.35f) else MaterialTheme.colorScheme.primaryContainer
+                    )
+                } else {
+                    CefrLevelPill(level = level)
+                }
                 CategoryBadge(
                     label = theme,
-                    color = MaterialTheme.colorScheme.primary,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    color = if (isLocked) semantic.textSecondary else themeColor,
+                    containerColor = if (isLocked) semantic.border.copy(alpha = 0.35f) else themeBg
                 )
             }
-            if (isCompleted) {
-                CategoryBadge(
-                    label = if (scorePercent != null) "Validée · $scorePercent %" else "Validée",
-                    color = semantic.success,
-                    containerColor = semantic.successContainer,
-                    icon = Icons.Filled.CheckCircle
-                )
-            } else {
-                Text(
-                    text = "$estimatedMinutes min",
-                    style = FrancaisProTextStyles.MonoMetric,
-                    color = semantic.textSecondary
-                )
+            when {
+                isCompleted -> {
+                    CategoryBadge(
+                        label = if (scorePercent != null) "Validée · $scorePercent %" else "Validée",
+                        color = semantic.success,
+                        containerColor = semantic.successContainer,
+                        icon = Icons.Filled.CheckCircle
+                    )
+                }
+                isLocked -> {
+                    CategoryBadge(
+                        label = "Verrouillé",
+                        color = semantic.textSecondary,
+                        containerColor = semantic.border.copy(alpha = 0.35f),
+                        icon = Icons.Filled.Lock
+                    )
+                }
+                isCurrent -> {
+                    CategoryBadge(
+                        label = "À suivre",
+                        color = MaterialTheme.colorScheme.primary,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        icon = Icons.Filled.PlayArrow
+                    )
+                }
+                else -> {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Schedule,
+                            contentDescription = null,
+                            tint = semantic.textSecondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "$estimatedMinutes min",
+                            style = FrancaisProTextStyles.MonoMetric,
+                            color = semantic.textSecondary
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -376,6 +637,7 @@ fun LessonCard(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
+            color = if (isLocked) semantic.textSecondary else MaterialTheme.colorScheme.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -387,6 +649,34 @@ fun LessonCard(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
+        if (isLocked && !lockReason.isNullOrBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = lockReason,
+                style = MaterialTheme.typography.labelSmall,
+                color = semantic.textSecondary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        } else if (!isLocked && !isCompleted) {
+            Spacer(Modifier.height(8.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Schedule,
+                    contentDescription = null,
+                    tint = semantic.textSecondary,
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = "$estimatedMinutes min · Cours + mini-exercice + quiz",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = semantic.textSecondary
+                )
+            }
+        }
     }
 }
 
@@ -639,8 +929,7 @@ fun StatisticsCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = FrancaisProTextStyles.MonoLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

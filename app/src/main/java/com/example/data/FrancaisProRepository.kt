@@ -3,6 +3,7 @@ package com.example.data
 import androidx.room.withTransaction
 import com.example.core.backup.BackupManager
 import com.example.core.backup.BackupResult
+import com.example.core.database.AcademyPracticeDay
 import com.example.core.database.Achievement
 import com.example.core.database.AppSettings
 import com.example.core.database.CorrectionError
@@ -19,6 +20,8 @@ import com.example.core.database.LearningStatistics
 import com.example.core.database.Lesson
 import com.example.core.database.LessonProgress
 import com.example.core.database.RecentDictionarySearch
+import com.example.core.database.StreakReward
+import com.example.core.database.StreakState
 import com.example.core.database.UserProfile
 import com.example.core.database.Verb
 import com.example.core.database.VocabularyProgress
@@ -27,6 +30,10 @@ import com.example.core.datastore.LocalUserPreferences
 import com.example.core.datastore.PreferencesRepository
 import com.example.learning.dictation.DictationDiffEngine
 import com.example.learning.dictation.DictationEvaluation
+import com.example.learning.progression.AcademyPracticeSource
+import com.example.learning.progression.AcademyStreakEngine
+import com.example.learning.progression.AchievementProgressEngine
+import com.example.learning.progression.AdaptiveProgressionEngine
 import com.example.learning.spacedrepetition.Sm2Scheduler
 import com.example.linguistics.analysis.HybridCorrectionEngine
 import com.example.linguistics.conjugation.FrenchConjugatorEngine
@@ -37,6 +44,9 @@ import com.example.linguistics.model.CorrectionReport
 import com.example.linguistics.model.FrenchNormalizer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
 
 class FrancaisProRepository(
@@ -70,18 +80,59 @@ class FrancaisProRepository(
     val statistics: Flow<List<LearningStatistics>> = db.statsAndMetaDao().observeStatistics()
     val favorites: Flow<List<Favorite>> = db.statsAndMetaDao().observeFavorites()
     val appSettings: Flow<AppSettings?> = db.statsAndMetaDao().observeSettings()
+    val streakState: Flow<StreakState?> = db.academyStreakDao().observeStreakState()
+    val academyPracticeDays: Flow<List<AcademyPracticeDay>> = db.academyStreakDao().observeRecentPracticeDays()
+    val streakRewards: Flow<List<StreakReward>> = db.academyStreakDao().observeStreakRewards()
 
-    private fun currentEpochDay(): Long = System.currentTimeMillis() / 86_400_000L
+    private val _unlockedAchievementEvents = MutableSharedFlow<Achievement>(extraBufferCapacity = 12)
+    val unlockedAchievementEvents: SharedFlow<Achievement> = _unlockedAchievementEvents.asSharedFlow()
+
+    private val _unlockedStreakRewardEvents = MutableSharedFlow<StreakReward>(extraBufferCapacity = 8)
+    val unlockedStreakRewardEvents: SharedFlow<StreakReward> = _unlockedStreakRewardEvents.asSharedFlow()
+
+    private fun currentEpochDay(nowMillis: Long = System.currentTimeMillis()): Long =
+        nowMillis / AcademyStreakEngine.DAY_MS
 
     // --- Profil, Onboarding & Évaluation ---
     suspend fun completeOnboarding(displayName: String = "Apprenant") {
         val current = db.userProfileDao().getProfile() ?: UserProfile()
         db.userProfileDao().upsert(
             current.copy(
-                displayName = displayName.ifBlank { "Apprenant" },
+                displayName = displayName.trim().ifBlank { "Apprenant" },
                 onboardingCompleted = true
             )
         )
+    }
+
+    suspend fun completeOnboardingFlow(
+        displayName: String,
+        dailyGoalMinutes: Int,
+        placementCorrect: Int?,
+        placementTotal: Int?
+    ) {
+        updateDailyGoalMinutes(dailyGoalMinutes.coerceIn(5, 60))
+        val current = db.userProfileDao().getProfile() ?: UserProfile()
+        val cleanName = displayName.trim().ifBlank { "Apprenant" }
+        val hasPlacement = placementCorrect != null && placementTotal != null && placementTotal > 0
+        val estimatedLevel = if (hasPlacement) {
+            AdaptiveProgressionEngine.estimateLevelFromPlacement(placementCorrect!!, placementTotal!!)
+        } else {
+            current.estimatedLevel
+        }
+        val pct = if (hasPlacement) (placementCorrect!! * 100) / placementTotal!! else current.globalScore
+
+        db.userProfileDao().upsert(
+            current.copy(
+                displayName = cleanName,
+                estimatedLevel = estimatedLevel,
+                globalScore = maxOf(current.globalScore, pct),
+                onboardingCompleted = true,
+                initialAssessmentCompleted = current.initialAssessmentCompleted || hasPlacement
+            )
+        )
+        if (hasPlacement) {
+            recordActivity(minutes = 3)
+        }
     }
 
     suspend fun completeInitialAssessment(estimatedLevel: String, scorePercent: Int) {
@@ -147,7 +198,7 @@ class FrancaisProRepository(
         // Mettre à jour statistiques par catégorie d'erreur pour l'apprentissage adaptatif
         val profile = db.userProfileDao().getProfile() ?: UserProfile()
         db.userProfileDao().upsert(
-            profile.copy(totalCorrectionsCount = profile.totalCorrectionsCount + appliedCount.coerceAtLeast(1))
+            profile.copy(totalCorrectionsCount = profile.totalCorrectionsCount + appliedCount.coerceAtLeast(0))
         )
         issues.groupBy { it.category.labelFr }.forEach { (cat, list) ->
             updateSkillStat(category = cat, isSuccess = false, weight = list.size.coerceAtMost(3))
@@ -157,7 +208,7 @@ class FrancaisProRepository(
             updateSkillStat(category = "Grammaire", isSuccess = true)
         }
         recordActivity(minutes = 2, correctionsDelta = 1)
-        unlockAchievement("ach_first_correction")
+        evaluateAndUnlockAchievements()
         return historyId
     }
 
@@ -192,7 +243,11 @@ class FrancaisProRepository(
             updateSkillStat(lesson.theme, isSuccess = quizScorePercent >= 60)
         }
         recordActivity(minutes = lesson?.estimatedMinutes ?: 5)
-        unlockAchievement("ach_first_lesson")
+        recordAcademyPracticeSession(
+            source = AcademyPracticeSource.LESSON,
+            xpDelta = if (quizScorePercent >= 90) 70 else 50
+        )
+        evaluateAndUnlockAchievements()
     }
 
     // --- Exercices ---
@@ -209,8 +264,11 @@ class FrancaisProRepository(
         )
         updateSkillStat(exercise.category, isSuccess = isCorrect)
         recordActivity(minutes = 2, exercisesDelta = 1)
-        val successes = db.exerciseDao().getAllAttemptsSnapshot().count { it.isCorrect }
-        if (successes >= 5) unlockAchievement("ach_5_exercises")
+        recordAcademyPracticeSession(
+            source = AcademyPracticeSource.EXERCISE,
+            xpDelta = if (isCorrect) exercise.points else 5
+        )
+        evaluateAndUnlockAchievements()
     }
 
     // --- Dictionnaire local (Room SQLite 100 % hors ligne) ---
@@ -383,7 +441,11 @@ class FrancaisProRepository(
         )
         updateSkillStat("Orthographe", isSuccess = eval.scoreOutOf20 >= 14f)
         recordActivity(minutes = 4, exercisesDelta = 1)
-        unlockAchievement("ach_first_dictation")
+        recordAcademyPracticeSession(
+            source = AcademyPracticeSource.DICTATION,
+            xpDelta = if (eval.scoreOutOf20 >= 14f) 30 else 15
+        )
+        evaluateAndUnlockAchievements()
         return eval
     }
 
@@ -394,8 +456,11 @@ class FrancaisProRepository(
         db.vocabularyDao().upsertProgress(updated)
         updateSkillStat("Vocabulaire", isSuccess = quality >= 3)
         recordActivity(minutes = 2, exercisesDelta = 1)
-        val reviewed = db.vocabularyDao().getAllProgressSnapshot().size
-        if (reviewed >= 5) unlockAchievement("ach_vocab_master")
+        recordAcademyPracticeSession(
+            source = AcademyPracticeSource.VOCABULARY,
+            xpDelta = if (quality >= 3) 15 else 5
+        )
+        evaluateAndUnlockAchievements()
     }
 
     // --- Favoris ---
@@ -459,8 +524,20 @@ class FrancaisProRepository(
     suspend fun exportBackupJson(includeHistory: Boolean): BackupResult =
         backupManager.exportToJson(includeHistory)
 
-    suspend fun importBackupJson(rawJson: String): BackupResult =
-        backupManager.importFromJson(rawJson)
+    suspend fun importBackupJson(rawJson: String): BackupResult {
+        val result = backupManager.importFromJson(rawJson)
+        if (result is BackupResult.ImportSuccess) {
+            db.statsAndMetaDao().getSettings()?.let { restored ->
+                prefs.updateThemeMode(restored.themeMode)
+                prefs.updateDailyGoal(restored.dailyGoalMinutes)
+                prefs.updateSpeechRate(restored.ttsSpeechRate)
+                prefs.updateAutoAnalyze(restored.autoAnalyzeCorrection)
+                prefs.updateIncludeHistoryInBackup(restored.includeHistoryInBackup)
+                prefs.updateDailyReminder(restored.dailyReminderEnabled, restored.reminderHour)
+            }
+        }
+        return result
+    }
 
     // --- Métriques internes & Série ---
     private suspend fun updateSkillStat(category: String, isSuccess: Boolean, weight: Int = 1) {
@@ -515,15 +592,130 @@ class FrancaisProRepository(
                 globalScore = maxOf(profile.globalScore, avgScore)
             )
         )
-        if (newStreak >= 3) unlockAchievement("ach_streak_3")
+        if (newStreak >= 3) {
+            unlockAchievement("ach_streak_3")
+        }
+    }
+
+    suspend fun recordAcademyPracticeSession(
+        source: AcademyPracticeSource,
+        xpDelta: Int,
+        nowMillis: Long = System.currentTimeMillis()
+    ): StreakReward? {
+        val epochDay = currentEpochDay(nowMillis)
+        val unlockedNow = db.withTransaction {
+            val existingRewards = db.academyStreakDao().getStreakRewardsSnapshot()
+                .ifEmpty {
+                    val defaults = AcademyStreakEngine.defaultRewards()
+                    db.academyStreakDao().insertStreakRewardsIgnore(defaults)
+                    db.academyStreakDao().getStreakRewardsSnapshot()
+                }
+            val currentState = db.academyStreakDao().getStreakState() ?: StreakState()
+            val existingToday = db.academyStreakDao().getPracticeDay(epochDay)
+
+            val outcome = AcademyStreakEngine.recordAcademyPractice(
+                currentState = currentState,
+                existingToday = existingToday,
+                existingRewards = existingRewards,
+                source = source,
+                xpDelta = xpDelta,
+                epochDay = epochDay,
+                nowMillis = nowMillis
+            )
+
+            outcome.freezeBridgedDay?.let { db.academyStreakDao().upsertPracticeDay(it) }
+            db.academyStreakDao().upsertPracticeDay(outcome.updatedDay)
+            db.academyStreakDao().upsertStreakState(outcome.updatedState)
+            outcome.newlyUnlockedRewards.forEach { reward ->
+                db.academyStreakDao().updateStreakReward(reward)
+            }
+
+            // Synchronise la série affichée sur le profil global
+            val profile = db.userProfileDao().getProfile() ?: UserProfile()
+            db.userProfileDao().upsert(
+                profile.copy(
+                    streakDays = outcome.updatedState.currentStreak,
+                    lastActiveEpochDay = maxOf(profile.lastActiveEpochDay, epochDay)
+                )
+            )
+            outcome.newlyUnlockedRewards
+        }
+        unlockedNow.forEach { _unlockedStreakRewardEvents.tryEmit(it) }
+        return unlockedNow.lastOrNull()
+    }
+
+    suspend fun claimStreakReward(
+        rewardId: String,
+        nowMillis: Long = System.currentTimeMillis()
+    ): StreakReward? {
+        val claimed = db.withTransaction {
+            val rewards = db.academyStreakDao().getStreakRewardsSnapshot()
+            val target = rewards.firstOrNull { it.id == rewardId } ?: return@withTransaction null
+            if (!target.isUnlocked || target.isClaimed) return@withTransaction null
+
+            val updatedReward = target.copy(isClaimed = true, claimedAt = nowMillis)
+            db.academyStreakDao().updateStreakReward(updatedReward)
+
+            val currentState = db.academyStreakDao().getStreakState() ?: StreakState()
+            db.academyStreakDao().upsertStreakState(
+                currentState.copy(
+                    freezeTokensAvailable = currentState.freezeTokensAvailable + target.freezeTokensGranted,
+                    totalBonusXpEarned = currentState.totalBonusXpEarned + target.bonusXp
+                )
+            )
+
+            val profile = db.userProfileDao().getProfile() ?: UserProfile()
+            db.userProfileDao().upsert(
+                profile.copy(globalScore = (profile.globalScore + 2).coerceAtMost(100))
+            )
+            updatedReward
+        }
+        return claimed
+    }
+
+    suspend fun evaluateAndUnlockAchievements(): List<Achievement> {
+        val existingAchievements = db.statsAndMetaDao().getAchievementsSnapshot()
+        if (existingAchievements.isEmpty()) return emptyList()
+
+        val lessons = com.example.learning.content.AcademyLessonsSeed.lessons()
+        val lessonProgress = db.lessonDao().getAllProgressSnapshot()
+        val exerciseAttempts = db.exerciseDao().getAllAttemptsSnapshot()
+        val vocabularyProgress = db.vocabularyDao().getAllProgressSnapshot()
+        val correctionHistory = db.correctionDao().getHistorySnapshot()
+        val dictationAttempts = db.dictationDao().getAttemptsSnapshot()
+        val profile = db.userProfileDao().getProfile()
+        val streakState = db.academyStreakDao().getStreakState()
+
+        val qualifyingIds = AchievementProgressEngine.qualifyingIds(
+            lessons = lessons,
+            lessonProgress = lessonProgress,
+            exerciseAttempts = exerciseAttempts,
+            vocabularyProgress = vocabularyProgress,
+            correctionHistory = correctionHistory,
+            dictationAttempts = dictationAttempts,
+            profile = profile,
+            streakState = streakState
+        )
+
+        val now = System.currentTimeMillis()
+        val newlyUnlocked = mutableListOf<Achievement>()
+        existingAchievements.forEach { ach ->
+            if (!ach.isUnlocked && ach.id in qualifyingIds) {
+                val updated = ach.copy(isUnlocked = true, unlockedAt = now)
+                db.statsAndMetaDao().updateAchievement(updated)
+                newlyUnlocked += updated
+                _unlockedAchievementEvents.tryEmit(updated)
+            }
+        }
+        return newlyUnlocked
     }
 
     private suspend fun unlockAchievement(id: String) {
         val existing = db.statsAndMetaDao().getAchievementsSnapshot().firstOrNull { it.id == id } ?: return
         if (!existing.isUnlocked) {
-            db.statsAndMetaDao().updateAchievement(
-                existing.copy(isUnlocked = true, unlockedAt = System.currentTimeMillis())
-            )
+            val updated = existing.copy(isUnlocked = true, unlockedAt = System.currentTimeMillis())
+            db.statsAndMetaDao().updateAchievement(updated)
+            _unlockedAchievementEvents.tryEmit(updated)
         }
     }
 }

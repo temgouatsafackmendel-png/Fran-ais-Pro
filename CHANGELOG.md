@@ -2,6 +2,36 @@
 
 Toutes les évolutions notables de **FRANÇAIS PRO** sont documentées dans ce fichier selon le format [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la gestion sémantique de version ([SemVer](https://semver.org/lang/fr/)).
 
+## [1.3.0] — Design System Premium complet, Aperçu 30 jours & Ergonomie modernisée
+
+### Ajouté
+- **Système de tokens Design System complet** (`Color.kt`, `Type.kt`, `Theme.kt`) :
+  - Tokens chromatiques structurés Clair & Sombre (`FrancaisProPalette`, `SemanticColors`) incluant `syntaxViolet`, `styleBlue` et `surfaceSubtle`, sans aucun code hexadécimal dispersé dans les écrans.
+  - Échelle typographique complète à 9 rôles + `displaySmall` (*Fraunces*) et styles tabulaires `MonoMetric` / `MonoLarge` (*JetBrains Mono*), complétée par *Plus Jakarta Sans* embarquée localement.
+  - Grille stricte 4 dp via `FrancaisProSpacing` et `LocalSpacing`, exposée via `FrancaisProThemeTokens`, avec marges horizontales adaptatives (`16 dp` / `20 dp`), bordures `1 dp` et rayons unifiés (`10 / 14 / 18 / 24 dp` + pilule).
+  - Adaptation automatique des icônes système (barre d'état et navigation) au thème clair/sombre et fonds de lancement XML dédiés (`values/themes.xml` & `values-night/themes.xml`).
+- **Aperçu des performances sur 30 jours** (`PerformanceOverviewScreen`) accessible directement depuis le tableau de bord (*Vos progrès*), les Statistiques et le Profil : graphique multi-séries interactif (Grammaire, Vocabulaire, Écriture), sélecteur 7 j / 14 j / 30 j et sparklines par domaine.
+- **Écoute audio directe dans le Dictionnaire** : bouton de prononciation TTS instantanée sur chaque fiche de résultat sans quitter la liste.
+- **Bilan des Exercices enrichi** : indicateur global de précision (`%`) dans l'en-tête et filtre « À revoir » dans le récapitulatif de fin de session.
+
+### Amélioré
+- **Composants & micro-interactions** : retour tactile sobre sur `PrimaryButton` / `SecondaryButton` (respectant *Réduire les animations*), cibles tactiles ≥ 48 dp sur les actions de section, dégradé éditorial et badge *Objectif ✓* sur `ProgressCard`, double codage sémantique (pastille + libellé) sur les badges d'analyse du Correcteur.
+- **Fiabilité & couverture de tests** : corrections de synchronisation des paramètres et migrations Room, plus nouveaux tests unitaires et UI Robolectric vérifiant l'intégralité des tokens du Design System et les nouvelles interactions.
+
+## [1.2.0] — Parcours progressif CECRL, Missions du jour & Studio d'écriture
+
+### Ajouté
+- **24 vrais cours CECRL progressifs (A1 → C2)** : 4 chapitres structurés par niveau avec QCM dédiés, mini-exercices intégrés, frise visuelle verticale et déblocage séquentiel chapitre par chapitre puis niveau par niveau (bonus palier **+100 XP**, seuil de validation quiz **≥ 60 %**).
+- **Missions du jour sur l'Accueil** (`DailyQuestsEngine`) : 3 objectifs quotidiens calculés en direct depuis Room (*Valider 1 chapitre*, *Réussir 3 exercices*, *Pratiquer son objectif quotidien*) avec barres de progression et récompenses XP.
+- **Studio d'écriture dans le Correcteur** : indicateurs de lisibilité en direct (*indice de clarté*, *nombre de phrases*, *temps de lecture estimé*), jauge circulaire de score `/ 100`, filtres interactifs par catégorie d'erreur (*Orthographe*, *Grammaire*, *Syntaxe*, *Style*) et confirmation visuelle de copie.
+- **Mode Défi Express (5 questions) & Combo** dans les Exercices : sprint guidé avec barre de progression de session, compteur de série de bonnes réponses en direct et filtres thématiques avec icônes modernes.
+- **Historique Room des 10 dernières recherches du Dictionnaire** (migration non destructive SQLite `v1 → v2`) : persistance locale, déduplication insensible aux accents, sélection en un geste, suppression individuelle et effacement global.
+- **Vocabulaire SM-2 enrichi** : jauge de maîtrise globale et boutons de rappel dotés d'icônes modernes.
+
+### Amélioré
+- Structuration homogène de toutes les pages et sections (`SectionHeader` avec icône dédiée et sous-titre, cartes `LevelCard` et `LessonCard` avec états *Validé / À suivre / Verrouillé*, page de cours en 7 étapes numérotées).
+- Suite de tests étendue à **41+ tests unitaires et UI Robolectric** couvrant l'ensemble des moteurs et écrans.
+
 ## [1.1.0] — Mise à jour majeure hors ligne
 
 ### Ajouté

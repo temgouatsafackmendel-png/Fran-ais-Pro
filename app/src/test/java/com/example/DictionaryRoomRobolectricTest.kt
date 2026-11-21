@@ -134,4 +134,35 @@ class DictionaryRoomRobolectricTest {
         repository.deleteCustomDictionaryEntry(custom.id)
         assertNull(db.dictionaryDao().getById(custom.id))
     }
+
+    @Test
+    fun `room recent dictionary searches persist deduplicate and enforce 10 item limit`() = runTest {
+        val terms = listOf(
+            "Éloquence", "Syntaxe", "Concis", "Pléonasme", "Perspicace",
+            "Harmonie", "Subtil", "Paradoxe", "Érudit", "Nuance",
+            "Pragmatique", "Rigueur"
+        )
+        terms.forEachIndexed { idx, term ->
+            repository.recordDictionarySearch(term, timestamp = 1_000L + idx * 100L)
+        }
+
+        // Exactement les 10 dernières recherches conservées dans l'ordre antéchronologique
+        val saved = repository.recentDictionarySearches.first()
+        assertEquals(10, saved.size)
+        assertEquals("Rigueur", saved.first().queryText)
+        assertEquals("Concis", saved.last().queryText)
+
+        // Déduplication insensible aux accents/casse : remonte en tête sans dépasser 10
+        repository.recordDictionarySearch("concis", timestamp = 5_000L)
+        val afterDedup = repository.recentDictionarySearches.first()
+        assertEquals(10, afterDedup.size)
+        assertEquals("concis", afterDedup.first().queryText)
+
+        // Suppression individuelle puis effacement complet
+        repository.removeRecentDictionarySearch(afterDedup.first().normalizedQuery)
+        assertEquals(9, repository.recentDictionarySearches.first().size)
+
+        repository.clearRecentDictionarySearches()
+        assertTrue(repository.recentDictionarySearches.first().isEmpty())
+    }
 }

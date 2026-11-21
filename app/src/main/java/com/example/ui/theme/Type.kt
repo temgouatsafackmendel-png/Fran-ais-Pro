@@ -96,21 +96,35 @@ object FrancaisProTextStyles {
         fontSize = 12.sp,
         lineHeight = 16.sp
     )
+    val MonoLarge = TextStyle(
+        fontFamily = JetBrainsMonoFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        lineHeight = 24.sp
+    )
 }
 
 val FrancaisProTypography = Typography(
     displayLarge = FrancaisProTextStyles.Display,
     displayMedium = FrancaisProTextStyles.Display.copy(fontSize = 28.sp, lineHeight = 34.sp),
+    displaySmall = FrancaisProTextStyles.Display.copy(fontSize = 24.sp, lineHeight = 30.sp),
     headlineLarge = FrancaisProTextStyles.Heading1,
     headlineMedium = FrancaisProTextStyles.Heading2,
     headlineSmall = FrancaisProTextStyles.Heading3,
     titleLarge = FrancaisProTextStyles.Heading2.copy(fontSize = 19.sp, lineHeight = 25.sp),
     titleMedium = FrancaisProTextStyles.Heading3,
-    titleSmall = FrancaisProTextStyles.BodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 15.sp),
+    titleSmall = FrancaisProTextStyles.BodyMedium.copy(
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 15.sp,
+        lineHeight = 20.sp
+    ),
     bodyLarge = FrancaisProTextStyles.BodyLarge,
     bodyMedium = FrancaisProTextStyles.BodyMedium,
     bodySmall = FrancaisProTextStyles.BodySmall,
-    labelLarge = FrancaisProTextStyles.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+    labelLarge = FrancaisProTextStyles.BodyMedium.copy(
+        fontWeight = FontWeight.SemiBold,
+        lineHeight = 20.sp
+    ),
     labelMedium = FrancaisProTextStyles.Label,
     labelSmall = FrancaisProTextStyles.Caption
 )

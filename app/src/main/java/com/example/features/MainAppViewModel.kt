@@ -18,6 +18,8 @@ import com.example.core.database.LearningStatistics
 import com.example.core.database.Lesson
 import com.example.core.database.LessonProgress
 import com.example.core.database.RecentDictionarySearch
+import com.example.core.database.StreakReward
+import com.example.core.database.StreakState
 import com.example.core.database.UserProfile
 import com.example.core.database.Verb
 import com.example.core.database.VocabularyProgress
@@ -26,13 +28,19 @@ import com.example.core.datastore.LocalUserPreferences
 import com.example.data.DictionarySearchScope
 import com.example.data.FrancaisProRepository
 import com.example.learning.dictation.DictationEvaluation
+import com.example.learning.progression.AcademyStreakEngine
+import com.example.learning.progression.AcademyStreakSummary
 import com.example.learning.progression.AdaptiveProgressionEngine
+import com.example.learning.progression.CoursePathEngine
+import com.example.learning.progression.CurriculumRoadmap
 import com.example.learning.progression.LinguisticProfileSummary
 import com.example.linguistics.conjugation.IdentifiedVerbForm
 import com.example.linguistics.conjugation.VerbConjugationTable
+import com.example.linguistics.model.CorrectionIssue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -124,6 +132,25 @@ class MainAppViewModel(
     val achievements: StateFlow<List<Achievement>> = repository.achievements
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val unlockedAchievementEvents: SharedFlow<Achievement> = repository.unlockedAchievementEvents
+
+    val streakState: StateFlow<StreakState?> = repository.streakState
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val unlockedStreakRewardEvents: SharedFlow<StreakReward> = repository.unlockedStreakRewardEvents
+
+    val academyStreakSummary: StateFlow<AcademyStreakSummary> = combine(
+        repository.streakState,
+        repository.academyPracticeDays,
+        repository.streakRewards
+    ) { state, days, rewards ->
+        AcademyStreakEngine.buildSummary(state, days, rewards)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        AcademyStreakEngine.buildSummary(null, emptyList(), AcademyStreakEngine.defaultRewards())
+    )
+
     val statistics: StateFlow<List<LearningStatistics>> = repository.statistics
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -144,6 +171,17 @@ class MainAppViewModel(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         AdaptiveProgressionEngine.computeProfileSummary("A1", 0, emptyList())
+    )
+
+    val curriculumRoadmap: StateFlow<CurriculumRoadmap> = combine(
+        lessons,
+        lessonProgress
+    ) { allLessons, allProgress ->
+        CoursePathEngine.buildRoadmap(allLessons, allProgress)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        CoursePathEngine.buildRoadmap(emptyList(), emptyList())
     )
 
     // --- État Dictionnaire réactif (Room SQLite) ---
@@ -260,13 +298,12 @@ class MainAppViewModel(
         placementTotal: Int?
     ) {
         viewModelScope.launch {
-            repository.updateDailyGoalMinutes(dailyGoalMinutes)
-            repository.completeOnboarding(name)
-            if (placementCorrect != null && placementTotal != null && placementTotal > 0) {
-                val level = AdaptiveProgressionEngine.estimateLevelFromPlacement(placementCorrect, placementTotal)
-                val pct = (placementCorrect * 100) / placementTotal
-                repository.completeInitialAssessment(level, pct)
-            }
+            repository.completeOnboardingFlow(
+                displayName = name,
+                dailyGoalMinutes = dailyGoalMinutes,
+                placementCorrect = placementCorrect,
+                placementTotal = placementTotal
+            )
         }
     }
 
@@ -287,6 +324,10 @@ class MainAppViewModel(
 
     fun submitExercise(exercise: Exercise, answer: String, isCorrect: Boolean) {
         viewModelScope.launch { repository.submitExerciseAttempt(exercise, answer, isCorrect) }
+    }
+
+    fun claimStreakReward(rewardId: String) {
+        viewModelScope.launch { repository.claimStreakReward(rewardId) }
     }
 
     // Actions Dictionnaire (Room) & Conjugueur
@@ -486,6 +527,27 @@ class MainAppViewModel(
                 else -> Unit
             }
         }
+    }
+
+    fun saveWritingSession(
+        originalText: String,
+        correctedText: String,
+        issues: List<CorrectionIssue>,
+        appliedCount: Int
+    ) {
+        viewModelScope.launch {
+            repository.saveCorrectionSession(
+                originalText = originalText,
+                correctedText = correctedText,
+                issues = issues,
+                appliedCount = appliedCount,
+                sourceModule = "REDACTION"
+            )
+        }
+    }
+
+    fun reportBackupStatus(message: String) {
+        _backupStatus.value = message
     }
 
     fun clearBackupStatus() {

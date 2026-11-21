@@ -47,25 +47,32 @@ class CorrectorViewModel(
 
     fun updateText(newText: String) {
         _uiState.update { state ->
-            state.copy(
-                inputText = newText,
-                statusBanner = null
-            )
+            if (newText.isBlank()) {
+                CorrectorUiState(inputText = newText)
+            } else {
+                state.copy(
+                    inputText = newText,
+                    statusBanner = null
+                )
+            }
         }
     }
 
-    fun loadSample(text: String) {
+    fun loadSample(text: String, autoAnalyze: Boolean = true) {
         _uiState.update {
             CorrectorUiState(
                 inputText = text,
                 baselineOriginalText = text
             )
         }
-        analyzeCurrentText()
+        if (autoAnalyze) {
+            analyzeCurrentText()
+        }
     }
 
     fun analyzeCurrentText(sourceModule: String = "CORRECTEUR", onComplete: (() -> Unit)? = null) {
-        val text = _uiState.value.inputText
+        val snapshot = _uiState.value
+        val text = snapshot.inputText
         if (text.isBlank()) {
             _uiState.update { it.copy(statusBanner = "Saisissez ou collez un texte à analyser.") }
             return
@@ -73,11 +80,16 @@ class CorrectorViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isAnalyzing = true, statusBanner = null) }
             val report = repository.analyzeText(text)
-            val baseline = _uiState.value.baselineOriginalText.ifBlank { text }
+            val current = _uiState.value
+            val isFreshUserText = current.baselineOriginalText.isBlank() ||
+                (current.appliedCount == 0 && current.report != null && text != current.report.originalText)
+            val baseline = if (isFreshUserText) text else current.baselineOriginalText
+            val appliedForSession = if (isFreshUserText) 0 else current.appliedCount
             val diff = repository.correctionEngine.computeWordDiff(baseline, text)
             _uiState.update {
                 it.copy(
                     baselineOriginalText = baseline,
+                    appliedCount = appliedForSession,
                     report = report,
                     dismissedIssueIds = emptySet(),
                     isAnalyzing = false,
@@ -88,7 +100,7 @@ class CorrectorViewModel(
                 originalText = baseline,
                 correctedText = text,
                 issues = report.issues,
-                appliedCount = _uiState.value.appliedCount,
+                appliedCount = appliedForSession,
                 sourceModule = sourceModule
             )
             onComplete?.invoke()

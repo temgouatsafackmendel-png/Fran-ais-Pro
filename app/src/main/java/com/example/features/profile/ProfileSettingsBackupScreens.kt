@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Download
@@ -73,6 +74,7 @@ import com.example.learning.progression.LinguisticProfileSummary
 import com.example.navigation.Routes
 import com.example.ui.theme.FrancaisProDimens
 import com.example.ui.theme.LocalSemanticColors
+import com.example.ui.theme.LocalSpacing
 
 /**
  * Écran 22 : Profil personnel — Niveau, progression, temps d'étude, réalisations, paramètres & sauvegarde.
@@ -88,19 +90,20 @@ fun ProfileScreen(
     var nameDraft by remember(profile?.displayName) { mutableStateOf(profile?.displayName ?: "Apprenant") }
     val semantic = LocalSemanticColors.current
 
+    val spacing = LocalSpacing.current
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter
     ) {
-        val hPadding = FrancaisProDimens.screenHorizontalPadding(maxWidth)
+        val hPadding = spacing.screenHorizontalPadding(maxWidth)
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = FrancaisProDimens.MaxContentWidth),
-            contentPadding = PaddingValues(horizontal = hPadding, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .widthIn(max = spacing.maxContentWidth),
+            contentPadding = PaddingValues(horizontal = hPadding, vertical = spacing.space16),
+            verticalArrangement = Arrangement.spacedBy(spacing.space16)
         ) {
             item {
                 Text("Profil", style = MaterialTheme.typography.headlineMedium)
@@ -192,6 +195,12 @@ fun ProfileScreen(
 
             // Compétences maîtrisées / à renforcer
             item {
+                SectionHeader(
+                    title = "Bilan des compétences",
+                    subtitle = "Points forts et axes de progression",
+                    icon = Icons.Filled.EmojiEvents
+                )
+                Spacer(Modifier.height(10.dp))
                 EditorialCard {
                     Text("Compétences maîtrisées (${adaptiveSummary.masteredSkills.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
@@ -237,11 +246,18 @@ fun ProfileScreen(
 
             // Navigation secondaire claire
             item {
-                SectionHeader(title = "Espace & réglages")
+                SectionHeader(
+                    title = "Espace & réglages",
+                    subtitle = "Outils, statistiques, préférences et sauvegarde",
+                    icon = Icons.Filled.Settings
+                )
                 Spacer(Modifier.height(10.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     ProfileNavRow(Icons.AutoMirrored.Filled.MenuBook, "Démo & Guide d'utilisation", "Essai interactif du correcteur et mode d'emploi", "profile_nav_guide") {
                         onNavigate(Routes.USER_GUIDE)
+                    }
+                    ProfileNavRow(Icons.AutoMirrored.Filled.ShowChart, "Aperçu des performances (30 j)", "Tendances Grammaire, Vocabulaire et Écriture", "profile_nav_performance") {
+                        onNavigate(Routes.PERFORMANCE_OVERVIEW)
                     }
                     ProfileNavRow(Icons.Filled.BarChart, "Statistiques détaillées", "Graphiques interactifs de progression et badges", "profile_nav_stats") {
                         onNavigate(Routes.STATISTICS)
@@ -271,10 +287,10 @@ fun ProfileScreen(
                 )
             }
 
-            // Encart Version & Nouveautés (v1.1.0)
+            // Encart Version & Nouveautés (v1.3.0)
             item {
                 EditorialCard(
-                    contentPadding = 16.dp,
+                    contentPadding = spacing.space16,
                     modifier = Modifier.testTag("profile_release_card")
                 ) {
                     Row(
@@ -288,14 +304,14 @@ fun ProfileScreen(
                             fontWeight = FontWeight.Bold
                         )
                         CategoryBadge(
-                            label = "Mise à jour",
+                            label = "v${BuildConfig.VERSION_NAME}",
                             color = MaterialTheme.colorScheme.primary,
                             containerColor = MaterialTheme.colorScheme.primaryContainer
                         )
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = "Nouveautés : Mot du jour sur l'Accueil, Dictionnaire Room enrichi (48 entrées, recherche synonymes/antonymes & mots personnels), graphiques statistiques interactifs, transitions fluides 200 ms et écran Démo & Guide.",
+                        text = "Nouveautés v1.3.0 : Design System Premium unifié (tokens clair/sombre, grille 4 dp, typographie Fraunces, Plus Jakarta Sans & JetBrains Mono), Aperçu des performances sur 30 jours (Grammaire, Vocabulaire, Écriture), prononciation audio directe dans le Dictionnaire, précision & filtre d'erreurs en Exercices, et studio Correcteur raffiné de bout en bout.",
                         style = MaterialTheme.typography.bodySmall,
                         color = semantic.textSecondary
                     )
@@ -355,7 +371,7 @@ fun SettingsScreen(
     ) { granted ->
         if (granted) {
             onDailyReminderChange(true, prefs.reminderHour)
-            DailyReminderWorker.schedule(context, true)
+            DailyReminderWorker.schedule(context, true, prefs.reminderHour)
         }
     }
 
@@ -451,7 +467,7 @@ fun SettingsScreen(
                                     }
                                 }
                                 onDailyReminderChange(enable, prefs.reminderHour)
-                                DailyReminderWorker.schedule(context, enable)
+                                DailyReminderWorker.schedule(context, enable, prefs.reminderHour)
                             }
                         )
                     }
@@ -494,6 +510,7 @@ fun BackupScreen(
     onToggleIncludeHistory: (Boolean) -> Unit,
     onPrepareExport: (includeHistory: Boolean, onJsonReady: (String) -> Unit) -> Unit,
     onImportJson: (String) -> Unit,
+    onBackupFeedback: (String) -> Unit = {},
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -505,27 +522,43 @@ fun BackupScreen(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         val json = pendingJsonToWrite
-        if (uri != null && json != null) {
-            try {
-                context.contentResolver.openOutputStream(uri)?.use { out ->
+        pendingJsonToWrite = null
+        if (uri == null) {
+            onBackupFeedback("Export annulé : aucun fichier n'a été enregistré.")
+            return@rememberLauncherForActivityResult
+        }
+        if (json == null) {
+            onBackupFeedback("Erreur : contenu de sauvegarde indisponible.")
+            return@rememberLauncherForActivityResult
+        }
+        try {
+            val stream = context.contentResolver.openOutputStream(uri)
+            if (stream == null) {
+                onBackupFeedback("Impossible d'ouvrir le fichier sélectionné en écriture.")
+            } else {
+                stream.use { out ->
                     out.write(json.toByteArray(Charsets.UTF_8))
                 }
-            } catch (_: Exception) {
+                onBackupFeedback("Sauvegarde enregistrée avec succès dans le fichier JSON.")
             }
+        } catch (e: Exception) {
+            onBackupFeedback("Échec de l'enregistrement du fichier : ${e.message ?: "erreur d'écriture"}")
         }
     }
 
     val openDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        if (uri != null) {
-            try {
-                val content = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-                if (!content.isNullOrBlank()) {
-                    onImportJson(content)
-                }
-            } catch (_: Exception) {
+        if (uri == null) return@rememberLauncherForActivityResult
+        try {
+            val content = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+            if (content.isNullOrBlank()) {
+                onBackupFeedback("Le fichier sélectionné est vide ou illisible.")
+            } else {
+                onImportJson(content)
             }
+        } catch (e: Exception) {
+            onBackupFeedback("Impossible de lire le fichier sélectionné : ${e.message ?: "erreur de lecture"}")
         }
     }
 

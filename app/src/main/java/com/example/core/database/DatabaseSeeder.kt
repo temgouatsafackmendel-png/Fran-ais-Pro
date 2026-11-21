@@ -24,11 +24,13 @@ class DatabaseSeeder(
             if (db.statsAndMetaDao().getSettings() == null) {
                 db.statsAndMetaDao().upsertSettings(AppSettings())
             }
-            if (db.lessonDao().countLessons() == 0) {
-                db.lessonDao().insertLessons(AcademyLessonsSeed.lessons())
+            val seedLessons = AcademyLessonsSeed.lessons()
+            if (db.lessonDao().countLessons() < seedLessons.size) {
+                db.lessonDao().insertLessonsIgnore(seedLessons)
             }
-            if (db.exerciseDao().countExercises() == 0) {
-                db.exerciseDao().insertExercises(ExercisesAndDictationsSeed.exercises())
+            val seedExercises = ExercisesAndDictationsSeed.exercises()
+            if (db.exerciseDao().countExercises() < seedExercises.size) {
+                db.exerciseDao().insertExercisesIgnore(seedExercises)
             }
             val seedEntries = DictionarySeed.entries()
             if (db.dictionaryDao().countEntries() < seedEntries.size) {
@@ -40,8 +42,55 @@ class DatabaseSeeder(
             if (db.dictationDao().countDictations() == 0) {
                 db.dictationDao().insertDictations(ExercisesAndDictationsSeed.dictations())
             }
-            if (db.statsAndMetaDao().getAchievementsSnapshot().isEmpty()) {
-                db.statsAndMetaDao().insertAchievements(DictionarySeed.achievements())
+            val seedAchievements = DictionarySeed.achievements()
+            val existingAchievements = db.statsAndMetaDao().getAchievementsSnapshot()
+            if (existingAchievements.size < seedAchievements.size) {
+                db.statsAndMetaDao().insertAchievementsIgnore(seedAchievements)
+            }
+            // Met à jour uniquement les libellés d'anciens badges conservés en conservant l'état débloqué
+            val existingById = existingAchievements.associateBy { it.id }
+            seedAchievements.forEach { seeded ->
+                val current = existingById[seeded.id]
+                if (current != null && (current.title != seeded.title || current.description != seeded.description || current.iconName != seeded.iconName)) {
+                    db.statsAndMetaDao().updateAchievement(
+                        current.copy(
+                            title = seeded.title,
+                            description = seeded.description,
+                            iconName = seeded.iconName
+                        )
+                    )
+                }
+            }
+            val seedRewards = DictionarySeed.streakRewards()
+            val existingRewards = db.academyStreakDao().getStreakRewardsSnapshot()
+            if (existingRewards.size < seedRewards.size) {
+                db.academyStreakDao().insertStreakRewardsIgnore(seedRewards)
+            }
+            if (db.academyStreakDao().getStreakState() == null) {
+                val existingProfile = db.userProfileDao().getProfile()
+                val legacyStreak = (existingProfile?.streakDays ?: 0).coerceAtLeast(0)
+                val legacyDay = existingProfile?.lastActiveEpochDay ?: 0L
+                db.academyStreakDao().upsertStreakState(
+                    StreakState(
+                        id = 1,
+                        currentStreak = legacyStreak,
+                        bestStreak = legacyStreak,
+                        lastPracticeEpochDay = legacyDay,
+                        freezeTokensAvailable = 1,
+                        totalBonusXpEarned = 0,
+                        totalAcademySessions = if (legacyStreak > 0) 1 else 0
+                    )
+                )
+                if (legacyStreak > 0) {
+                    val now = System.currentTimeMillis()
+                    db.academyStreakDao().getStreakRewardsSnapshot().forEach { reward ->
+                        if (!reward.isUnlocked && legacyStreak >= reward.requiredStreakDays) {
+                            db.academyStreakDao().updateStreakReward(
+                                reward.copy(isUnlocked = true, unlockedAt = now)
+                            )
+                        }
+                    }
+                }
             }
             if (db.statsAndMetaDao().getStatisticsSnapshot().isEmpty()) {
                 val baseSkills = listOf(

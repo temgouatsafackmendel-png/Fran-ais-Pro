@@ -8,6 +8,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -76,9 +78,10 @@ import com.example.navigation.NavigationMotion
 import com.example.ui.theme.FrancaisProDimens
 import com.example.ui.theme.LocalReducedMotion
 import com.example.ui.theme.LocalSemanticColors
+import com.example.ui.theme.LocalSpacing
 
 /**
- * 1. PrimaryButton — Action principale (rayon 14 dp, cible tactile ≥ 48 dp, état chargement optionnel).
+ * 1. PrimaryButton — Action principale (rayon 14 dp, cible tactile ≥ 48 dp, retour tactile sobre).
  */
 @Composable
 fun PrimaryButton(
@@ -92,12 +95,27 @@ fun PrimaryButton(
     contentColor: Color = MaterialTheme.colorScheme.onPrimary
 ) {
     val interactive = enabled && !isLoading
+    val spacing = LocalSpacing.current
+    val reducedMotion = LocalReducedMotion.current
+    val interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed && interactive && !reducedMotion) 0.985f else 1f,
+        animationSpec = tween(durationMillis = if (reducedMotion) 0 else 120),
+        label = "primary_btn_scale"
+    )
     Button(
         onClick = onClick,
         enabled = interactive,
-        modifier = modifier.heightIn(min = 50.dp),
+        interactionSource = interactionSource,
+        modifier = modifier
+            .heightIn(min = 50.dp)
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            },
         shape = RoundedCornerShape(FrancaisProDimens.RadiusButton),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = spacing.space16 + 2.dp, vertical = spacing.space12),
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor,
@@ -140,14 +158,32 @@ fun SecondaryButton(
     contentColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     val semantic = LocalSemanticColors.current
+    val spacing = LocalSpacing.current
+    val reducedMotion = LocalReducedMotion.current
     val interactive = enabled && !isLoading
+    val interactionSource = androidx.compose.runtime.remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed && interactive && !reducedMotion) 0.985f else 1f,
+        animationSpec = tween(durationMillis = if (reducedMotion) 0 else 120),
+        label = "secondary_btn_scale"
+    )
     OutlinedButton(
         onClick = onClick,
         enabled = interactive,
-        modifier = modifier.heightIn(min = 48.dp),
+        interactionSource = interactionSource,
+        modifier = modifier
+            .heightIn(min = spacing.minTouchTarget)
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            },
         shape = RoundedCornerShape(FrancaisProDimens.RadiusButton),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        border = BorderStroke(1.dp, if (interactive) semantic.border else semantic.border.copy(alpha = 0.5f)),
+        contentPadding = PaddingValues(horizontal = spacing.space16, vertical = spacing.space12),
+        border = BorderStroke(
+            spacing.borderWidth,
+            if (interactive) semantic.border else semantic.border.copy(alpha = 0.5f)
+        ),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = contentColor,
@@ -301,7 +337,7 @@ fun AppBottomNavigation(
     val scaleAnimDuration = if (reducedMotion) 0 else NavigationMotion.TAB_SCALE_DURATION_MS
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        HorizontalDivider(thickness = 1.dp, color = semantic.border)
+        HorizontalDivider(thickness = FrancaisProDimens.BorderStrokeWidth, color = semantic.border)
         NavigationBar(
             containerColor = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp,
@@ -503,7 +539,7 @@ fun AppSearchBar(
 }
 
 /**
- * Surface éditoriale standard (rayon 18 dp, bordure fine 1 dp, ombre naturelle légère).
+ * Surface éditoriale standard (rayon 18 dp, bordure fine 1 dp, élévation maîtrisée 1–2 dp).
  */
 @Composable
 fun EditorialCard(
@@ -511,9 +547,11 @@ fun EditorialCard(
     onClick: (() -> Unit)? = null,
     containerColor: Color = MaterialTheme.colorScheme.surface,
     borderColor: Color = LocalSemanticColors.current.border,
-    contentPadding: Dp = FrancaisProDimens.Space16,
+    contentPadding: Dp = LocalSpacing.current.space16,
+    elevated: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val spacing = LocalSpacing.current
     val shape = RoundedCornerShape(FrancaisProDimens.RadiusCard)
     val cardModifier = if (onClick != null) {
         modifier.clip(shape).clickable(role = Role.Button, onClick = onClick)
@@ -524,8 +562,10 @@ fun EditorialCard(
         modifier = cardModifier,
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = BorderStroke(spacing.borderWidth, borderColor),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (elevated) spacing.elevatedCardElevation else spacing.cardElevation
+        )
     ) {
         Column(
             modifier = Modifier.padding(contentPadding),
@@ -597,37 +637,79 @@ fun CefrLevelPill(level: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * En-tête de section avec action optionnelle à droite.
+ * En-tête de section structuré avec icône moderne optionnelle, sous-titre et action à droite.
  */
 @Composable
 fun SectionHeader(
     title: String,
     actionText: String? = null,
     onAction: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    subtitle: String? = null
 ) {
+    val semantic = LocalSemanticColors.current
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f)
-        )
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (icon != null) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = semantic.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
         if (actionText != null && onAction != null) {
-            Text(
-                text = actionText,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
+            Box(
                 modifier = Modifier
+                    .heightIn(min = FrancaisProDimens.MinTouchTarget)
                     .clip(RoundedCornerShape(FrancaisProDimens.RadiusSmall))
                     .clickable(role = Role.Button, onClick = onAction)
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-            )
+                    .padding(horizontal = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = actionText,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

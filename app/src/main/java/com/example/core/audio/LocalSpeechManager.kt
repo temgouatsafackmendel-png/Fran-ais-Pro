@@ -7,6 +7,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,6 +65,22 @@ class LocalSpeechManager(private val context: Context) {
                     } catch (_: Exception) {
                         frenchAvailable
                     }
+
+                    tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                        override fun onStart(utteranceId: String?) {
+                            _isSpeaking.value = true
+                        }
+                        override fun onDone(utteranceId: String?) {
+                            _isSpeaking.value = false
+                        }
+                        @Deprecated("Deprecated in Java")
+                        override fun onError(utteranceId: String?) {
+                            _isSpeaking.value = false
+                        }
+                        override fun onError(utteranceId: String?, errorCode: Int) {
+                            _isSpeaking.value = false
+                        }
+                    })
 
                     _capabilities.value = _capabilities.value.copy(
                         ttsReady = frenchAvailable,

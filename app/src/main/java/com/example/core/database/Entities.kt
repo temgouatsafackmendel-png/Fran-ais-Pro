@@ -367,3 +367,50 @@ data class AppSettings(
     val dailyReminderEnabled: Boolean = false,
     val reminderHour: Int = 19
 )
+
+@JsonClass(generateAdapter = true)
+@Entity(
+    tableName = "academy_practice_days",
+    indices = [Index("updatedAt")]
+)
+data class AcademyPracticeDay(
+    @PrimaryKey val epochDay: Long,
+    val lessonsCompletedCount: Int = 0,
+    val exercisesCompletedCount: Int = 0,
+    val vocabularyReviewsCount: Int = 0,
+    val dictationsCompletedCount: Int = 0,
+    val xpEarned: Int = 0,
+    val streakQualifies: Boolean = true,
+    val isFreezeUsed: Boolean = false,
+    val updatedAt: Long = System.currentTimeMillis()
+)
+
+@JsonClass(generateAdapter = true)
+@Entity(tableName = "streak_state")
+data class StreakState(
+    @PrimaryKey val id: Int = 1,
+    val currentStreak: Int = 0,
+    val bestStreak: Int = 0,
+    val lastPracticeEpochDay: Long = 0L,
+    val freezeTokensAvailable: Int = 1,
+    val totalBonusXpEarned: Int = 0,
+    val totalAcademySessions: Int = 0
+)
+
+@JsonClass(generateAdapter = true)
+@Entity(
+    tableName = "streak_rewards",
+    indices = [Index("requiredStreakDays")]
+)
+data class StreakReward(
+    @PrimaryKey val id: String,
+    val requiredStreakDays: Int,
+    val title: String,
+    val description: String,
+    val bonusXp: Int,
+    val freezeTokensGranted: Int = 1,
+    val isUnlocked: Boolean = false,
+    val isClaimed: Boolean = false,
+    val unlockedAt: Long = 0L,
+    val claimedAt: Long = 0L
+)

@@ -15,16 +15,26 @@ import com.example.navigation.NavigationMotion.enterTransition
 import com.example.navigation.NavigationMotion.exitTransition
 import com.example.navigation.NavigationMotion.popEnterTransition
 import com.example.navigation.NavigationMotion.popExitTransition
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Spellcheck
@@ -33,14 +43,25 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Spellcheck
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -50,10 +71,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.FrancaisProApplication
+import com.example.core.database.Achievement
+import com.example.core.database.StreakReward
 import com.example.core.design.AppBottomNavigation
 import com.example.core.design.AppNavigationRail
 import com.example.core.design.BottomNavDestination
+import com.example.core.design.CurriculumIcons
 import com.example.di.AppContainer
+import com.example.ui.theme.FrancaisProDimens
+import com.example.ui.theme.LocalSemanticColors
+import kotlinx.coroutines.delay
 import com.example.features.MainAppViewModel
 import com.example.features.academy.AcademyScreen
 import com.example.features.academy.LessonDetailScreen
@@ -65,6 +93,7 @@ import com.example.features.correction.CorrectorViewModel
 import com.example.features.dashboard.DashboardScreen
 import com.example.features.dashboard.FavoritesScreen
 import com.example.features.dashboard.HistoryScreen
+import com.example.features.dashboard.PerformanceOverviewScreen
 import com.example.features.dashboard.StatisticsScreen
 import com.example.features.onboarding.InitialAssessmentScreen
 import com.example.features.onboarding.OnboardingScreen
@@ -84,9 +113,6 @@ import com.example.features.reference.DictionaryScreen
 import com.example.features.reference.WordDetailScreen
 import com.example.ui.theme.FrancaisProTheme
 import com.example.ui.theme.LocalReducedMotion
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 private val mainTabs = listOf(
     BottomNavDestination(Routes.DASHBOARD, "Accueil", Icons.Filled.Home, Icons.Outlined.Home, "tab_home"),
@@ -144,6 +170,8 @@ fun FrancaisProApp(container: AppContainer) {
         val favorites by mainViewModel.favorites.collectAsStateWithLifecycle()
         val backupStatus by mainViewModel.backupStatus.collectAsStateWithLifecycle()
         val exerciseCategoryFilter by mainViewModel.exerciseCategoryFilter.collectAsStateWithLifecycle()
+        val streakState by mainViewModel.streakState.collectAsStateWithLifecycle()
+        val academyStreakSummary by mainViewModel.academyStreakSummary.collectAsStateWithLifecycle()
 
         val correctorState by correctorViewModel.uiState.collectAsStateWithLifecycle()
         val speechCaps by container.speechManager.capabilities.collectAsStateWithLifecycle()
@@ -154,6 +182,36 @@ fun FrancaisProApp(container: AppContainer) {
         var selectedMainTab by rememberSaveable { mutableStateOf(Routes.DASHBOARD) }
         val showPrimaryNav = currentRoute == Routes.MAIN_TABS
         val activeNavRoute = if (showPrimaryNav) selectedMainTab else currentRoute
+
+        val context = LocalContext.current
+        val appInstance = context.applicationContext as? FrancaisProApplication
+        val isSeedReady by (appInstance?.isSeedReady?.collectAsStateWithLifecycle()
+            ?: remember { mutableStateOf(true) })
+
+        var unlockedBadgeBanner by remember { mutableStateOf<Achievement?>(null) }
+        var unlockedStreakRewardBanner by remember { mutableStateOf<StreakReward?>(null) }
+        LaunchedEffect(mainViewModel) {
+            mainViewModel.unlockedAchievementEvents.collect { badge ->
+                unlockedBadgeBanner = badge
+            }
+        }
+        LaunchedEffect(mainViewModel) {
+            mainViewModel.unlockedStreakRewardEvents.collect { reward ->
+                unlockedStreakRewardBanner = reward
+            }
+        }
+        LaunchedEffect(unlockedBadgeBanner) {
+            if (unlockedBadgeBanner != null) {
+                delay(4500L)
+                unlockedBadgeBanner = null
+            }
+        }
+        LaunchedEffect(unlockedStreakRewardBanner) {
+            if (unlockedStreakRewardBanner != null) {
+                delay(4500L)
+                unlockedStreakRewardBanner = null
+            }
+        }
 
         fun navigateToTab(route: String) {
             val targetTab = if (route in Routes.topLevelTabs) route else Routes.DASHBOARD
@@ -221,6 +279,7 @@ fun FrancaisProApp(container: AppContainer) {
                         composable(Routes.SPLASH) {
                             SplashScreen(
                                 profile = profile,
+                                isSeedReady = isSeedReady,
                                 onNavigateToOnboarding = {
                                     navController.navigate(Routes.ONBOARDING) {
                                         popUpTo(Routes.SPLASH) { inclusive = true }
@@ -326,7 +385,9 @@ fun FrancaisProApp(container: AppContainer) {
                                         onTextChange = correctorViewModel::updateText,
                                         onAnalyze = { correctorViewModel.analyzeCurrentText() },
                                         onOpenResult = { navController.navigate(Routes.CORRECTION_RESULT) },
-                                        onLoadSample = correctorViewModel::loadSample,
+                                        onLoadSample = { sample ->
+                                            correctorViewModel.loadSample(sample, autoAnalyze = prefs.autoAnalyze)
+                                        },
                                         onFixAll = correctorViewModel::applyAllSafeCorrections,
                                         onAcceptIssue = correctorViewModel::acceptIssue,
                                         onDismissIssue = correctorViewModel::dismissIssue,
@@ -343,7 +404,25 @@ fun FrancaisProApp(container: AppContainer) {
                                         onOpenLevelLessons = { lvl -> navController.navigate(Routes.lessonList(lvl)) },
                                         onOpenDictionary = { navController.navigate(Routes.DICTIONARY) },
                                         onOpenConjugation = { navController.navigate(Routes.CONJUGATION) },
-                                        onOpenVocabulary = { navController.navigate(Routes.VOCABULARY) }
+                                        onOpenVocabulary = { navController.navigate(Routes.VOCABULARY) },
+                                        onOpenLesson = { id -> navController.navigate(Routes.lessonDetail(id)) },
+                                        achievements = achievements,
+                                        exerciseAttempts = exerciseAttempts,
+                                        vocabularyProgress = vocabProgress,
+                                        correctionHistory = correctionHistory,
+                                        dictationAttempts = dictationAttempts,
+                                        profile = profile,
+                                        streakSummary = academyStreakSummary,
+                                        streakState = streakState,
+                                        onClaimStreakReward = mainViewModel::claimStreakReward,
+                                        onStartCategoryTraining = { category ->
+                                            mainViewModel.setExerciseCategoryFilter(category)
+                                            navigateToTab(Routes.EXERCISES)
+                                        },
+                                        onNavigateRoute = { target ->
+                                            if (target in Routes.topLevelTabs) navigateToTab(target)
+                                            else navController.navigate(target)
+                                        }
                                     )
 
                                     Routes.EXERCISES -> ExercisesScreen(
@@ -425,7 +504,8 @@ fun FrancaisProApp(container: AppContainer) {
                                 },
                                 onStartQuiz = { id -> navController.navigate(Routes.lessonQuiz(id)) },
                                 onMarkCompleted = { id, pct -> mainViewModel.completeLesson(id, pct) },
-                                onBack = { navController.popBackStack() }
+                                onBack = { navController.popBackStack() },
+                                allProgress = lessonProgress
                             )
                         }
 
@@ -455,9 +535,19 @@ fun FrancaisProApp(container: AppContainer) {
                                 onToggleFavoritesOnly = mainViewModel::toggleDictionaryFavoritesOnly,
                                 onClearFilters = mainViewModel::clearDictionaryFilters,
                                 onOpenWord = { id ->
+                                    if (dictionaryUiState.query.isNotBlank()) {
+                                        mainViewModel.recordDictionarySearch(dictionaryUiState.query)
+                                    }
                                     mainViewModel.markDictionaryWordViewed(id)
                                     navController.navigate(Routes.wordDetail(id))
                                 },
+                                onSpeakWord = { wordText ->
+                                    container.speechManager.speak(wordText, prefs.ttsSpeechRate)
+                                },
+                                onSearchSubmit = mainViewModel::recordDictionarySearch,
+                                onSelectRecentSearch = mainViewModel::selectRecentDictionarySearch,
+                                onRemoveRecentSearch = mainViewModel::removeRecentDictionarySearch,
+                                onClearRecentSearches = mainViewModel::clearRecentDictionarySearches,
                                 onAddCustomWord = { word, pos, def, syn, ant, ex, lvl ->
                                     mainViewModel.addCustomDictionaryWord(
                                         word = word,
@@ -571,11 +661,7 @@ fun FrancaisProApp(container: AppContainer) {
                         composable(Routes.WRITING) {
                             WritingWorkshopScreen(
                                 correctionEngine = container.correctionEngine,
-                                onSaveSession = { orig, corr, issues, applied ->
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        container.repository.saveCorrectionSession(orig, corr, issues, applied, "REDACTION")
-                                    }
-                                },
+                                onSaveSession = mainViewModel::saveWritingSession,
                                 onBack = { navController.popBackStack() }
                             )
                         }
@@ -606,6 +692,30 @@ fun FrancaisProApp(container: AppContainer) {
                                 exerciseAttempts = exerciseAttempts,
                                 dictationAttempts = dictationAttempts,
                                 achievements = achievements,
+                                onOpenPerformanceOverview = {
+                                    navController.navigate(Routes.PERFORMANCE_OVERVIEW)
+                                },
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+
+                        // 19b. Aperçu des performances (tendances 30 jours Grammaire, Vocabulaire, Écriture)
+                        composable(Routes.PERFORMANCE_OVERVIEW) {
+                            PerformanceOverviewScreen(
+                                lessons = lessons,
+                                lessonProgress = lessonProgress,
+                                exerciseAttempts = exerciseAttempts,
+                                vocabularyProgress = vocabProgress,
+                                correctionHistory = correctionHistory,
+                                dictationAttempts = dictationAttempts,
+                                onNavigate = { target ->
+                                    if (target in Routes.topLevelTabs) navigateToTab(target)
+                                    else navController.navigate(target)
+                                },
+                                onTrainGrammar = {
+                                    mainViewModel.setExerciseCategoryFilter("Grammaire")
+                                    navigateToTab(Routes.EXERCISES)
+                                },
                                 onBack = { navController.popBackStack() }
                             )
                         }
@@ -666,6 +776,7 @@ fun FrancaisProApp(container: AppContainer) {
                                 onToggleIncludeHistory = mainViewModel::setIncludeHistoryInBackup,
                                 onPrepareExport = mainViewModel::prepareBackupExport,
                                 onImportJson = mainViewModel::importBackupJson,
+                                onBackupFeedback = mainViewModel::reportBackupStatus,
                                 onBack = { navController.popBackStack() }
                             )
                         }
@@ -683,6 +794,170 @@ fun FrancaisProApp(container: AppContainer) {
                                 },
                                 onBack = { navController.popBackStack() }
                             )
+                        }
+                    }
+                }
+            }
+
+            // Bannières flottantes non-bloquantes (badges & récompenses de série)
+            val semantic = LocalSemanticColors.current
+            val bannerEnterMs = if (reducedMotion) 0 else 220
+            val bannerExitMs = if (reducedMotion) 0 else 200
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                AnimatedVisibility(
+                    visible = unlockedStreakRewardBanner != null,
+                    enter = fadeIn(tween(bannerEnterMs)) + slideInVertically(tween(bannerEnterMs)) { -it },
+                    exit = fadeOut(tween(bannerExitMs)) + slideOutVertically(tween(bannerExitMs)) { -it }
+                ) {
+                    unlockedStreakRewardBanner?.let { reward ->
+                        Surface(
+                            shape = RoundedCornerShape(FrancaisProDimens.RadiusCard),
+                            color = semantic.navyHeader,
+                            border = BorderStroke(1.dp, semantic.success.copy(alpha = 0.65f)),
+                            shadowElevation = 6.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("streak_reward_unlocked_banner")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = semantic.successContainer,
+                                    modifier = Modifier.size(38.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Filled.LocalFireDepartment,
+                                            contentDescription = reward.title,
+                                            tint = semantic.success,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Palier de série débloqué !",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = semantic.success,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${reward.title} · +${reward.bonusXp} XP · +${reward.freezeTokensGranted} bouclier",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = semantic.onNavyHeader,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        unlockedStreakRewardBanner = null
+                                        navigateToTab(Routes.ACADEMY)
+                                    }
+                                ) {
+                                    Text(
+                                        "Réclamer",
+                                        color = semantic.success,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { unlockedStreakRewardBanner = null },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Fermer l'annonce de série",
+                                        tint = semantic.onNavyHeader,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = unlockedBadgeBanner != null,
+                    enter = fadeIn(tween(bannerEnterMs)) + slideInVertically(tween(bannerEnterMs)) { -it },
+                    exit = fadeOut(tween(bannerExitMs)) + slideOutVertically(tween(bannerExitMs)) { -it }
+                ) {
+                    unlockedBadgeBanner?.let { badge ->
+                        Surface(
+                            shape = RoundedCornerShape(FrancaisProDimens.RadiusCard),
+                            color = semantic.navyHeader,
+                            border = BorderStroke(1.dp, semantic.warning.copy(alpha = 0.6f)),
+                            shadowElevation = 6.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("achievement_unlocked_banner")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = semantic.warningContainer,
+                                    modifier = Modifier.size(38.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = CurriculumIcons.forAchievement(badge.iconName),
+                                            contentDescription = badge.title,
+                                            tint = semantic.warning,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Nouveau badge débloqué !",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = semantic.warning,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = badge.title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = semantic.onNavyHeader,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        unlockedBadgeBanner = null
+                                        navigateToTab(Routes.ACADEMY)
+                                    }
+                                ) {
+                                    Text(
+                                        "Académie",
+                                        color = semantic.warning,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { unlockedBadgeBanner = null },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "Fermer l'annonce de badge",
+                                        tint = semantic.onNavyHeader,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

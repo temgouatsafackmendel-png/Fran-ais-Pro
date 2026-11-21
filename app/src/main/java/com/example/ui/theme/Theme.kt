@@ -1,22 +1,29 @@
 package com.example.ui.theme
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 
 /**
  * Grille d'espacement stricte basée sur 4 dp et rayons officiels du Design System.
@@ -34,6 +41,11 @@ object FrancaisProDimens {
     val RadiusButton = 14.dp
     val RadiusCard = 18.dp
     val RadiusSurface = 24.dp
+    val RadiusPill = 999.dp
+
+    val BorderStrokeWidth = 1.dp
+    val CardElevation = 1.dp
+    val ElevatedCardElevation = 2.dp
 
     val MinTouchTarget = 48.dp
     val MaxContentWidth = 720.dp
@@ -41,6 +53,30 @@ object FrancaisProDimens {
     fun screenHorizontalPadding(availableWidth: Dp): Dp =
         if (availableWidth >= 412.dp) Space20 else Space16
 }
+
+/**
+ * Tokens d'espacement injectés via CompositionLocal (grille stricte 4 dp).
+ */
+@Immutable
+data class FrancaisProSpacing(
+    val space4: Dp = FrancaisProDimens.Space4,
+    val space8: Dp = FrancaisProDimens.Space8,
+    val space12: Dp = FrancaisProDimens.Space12,
+    val space16: Dp = FrancaisProDimens.Space16,
+    val space20: Dp = FrancaisProDimens.Space20,
+    val space24: Dp = FrancaisProDimens.Space24,
+    val space32: Dp = FrancaisProDimens.Space32,
+    val borderWidth: Dp = FrancaisProDimens.BorderStrokeWidth,
+    val cardElevation: Dp = FrancaisProDimens.CardElevation,
+    val elevatedCardElevation: Dp = FrancaisProDimens.ElevatedCardElevation,
+    val minTouchTarget: Dp = FrancaisProDimens.MinTouchTarget,
+    val maxContentWidth: Dp = FrancaisProDimens.MaxContentWidth
+) {
+    fun screenHorizontalPadding(availableWidth: Dp): Dp =
+        if (availableWidth >= 412.dp) space20 else space16
+}
+
+val LocalSpacing = staticCompositionLocalOf { FrancaisProSpacing() }
 
 /**
  * Couleurs sémantiques centralisées (aucun code hexadécimal dispersé dans les écrans).
@@ -217,7 +253,24 @@ object FrancaisProThemeTokens {
         @ReadOnlyComposable
         get() = LocalSemanticColors.current
 
+    val spacing: FrancaisProSpacing
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalSpacing.current
+
     val dimens: FrancaisProDimens = FrancaisProDimens
+
+    val typography: Typography
+        @Composable
+        @ReadOnlyComposable
+        get() = MaterialTheme.typography
+
+    val shapes: Shapes
+        @Composable
+        @ReadOnlyComposable
+        get() = MaterialTheme.shapes
+
+    val textStyles: FrancaisProTextStyles = FrancaisProTextStyles
 }
 
 /**
@@ -232,16 +285,35 @@ val FrancaisProShapes = Shapes(
     extraLarge = RoundedCornerShape(FrancaisProDimens.RadiusSurface)
 )
 
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 @Composable
 fun FrancaisProTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val reducedMotion = remember(context) {
         runCatching {
             Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
         }.getOrDefault(false)
+    }
+    val spacing = remember { FrancaisProSpacing() }
+
+    if (!view.isInEditMode) {
+        SideEffect {
+            val activity = view.context.findActivity() ?: return@SideEffect
+            runCatching {
+                val controller = WindowCompat.getInsetsController(activity.window, view)
+                controller.isAppearanceLightStatusBars = !darkTheme
+                controller.isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
     }
 
     val colorScheme = if (darkTheme) FrancaisProDarkColorScheme else FrancaisProLightColorScheme
@@ -249,6 +321,7 @@ fun FrancaisProTheme(
 
     CompositionLocalProvider(
         LocalSemanticColors provides semanticColors,
+        LocalSpacing provides spacing,
         LocalReducedMotion provides reducedMotion
     ) {
         MaterialTheme(

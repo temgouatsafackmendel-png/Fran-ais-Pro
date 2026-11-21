@@ -8,14 +8,24 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasTestTag
+import com.example.core.database.CorrectionHistory
+import com.example.core.database.DictationAttempt
+import com.example.core.database.ExerciseAttempt
+import com.example.core.database.LessonProgress
+import com.example.core.database.RecentDictionarySearch
 import com.example.core.database.UserProfile
+import com.example.core.database.VocabularyProgress
 import com.example.data.DictionarySearchScope
 import com.example.features.DictionaryUiState
+import com.example.features.academy.AcademyScreen
 import com.example.features.academy.LessonDetailScreen
+import com.example.features.academy.LessonListScreen
 import com.example.features.correction.CorrectorScreen
 import com.example.features.correction.CorrectorUiState
 import com.example.features.dashboard.DashboardScreen
+import com.example.features.dashboard.PerformanceOverviewScreen
 import com.example.features.onboarding.OnboardingScreen
+import com.example.features.practice.ExercisesScreen
 import com.example.features.profile.DemoAndGuideScreen
 import com.example.features.reference.DictionaryScreen
 import com.example.features.reference.WordDetailScreen
@@ -49,6 +59,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.core.design.AppBottomNavigation
 import com.example.core.design.AppTopBar
 import com.example.core.design.BottomNavDestination
@@ -59,9 +71,18 @@ import com.example.core.design.WeeklyMinutesBarChart
 import com.example.navigation.NavigationMotion
 import com.example.navigation.Routes
 import com.example.ui.theme.FrancaisProDarkColorScheme
+import com.example.ui.theme.FrancaisProDimens
 import com.example.ui.theme.FrancaisProLightColorScheme
 import com.example.ui.theme.FrancaisProPalette
+import com.example.ui.theme.FrancaisProShapes
+import com.example.ui.theme.FrancaisProTextStyles
 import com.example.ui.theme.FrancaisProTheme
+import com.example.ui.theme.FrancaisProThemeTokens
+import com.example.ui.theme.FrancaisProTypography
+import com.example.ui.theme.FrauncesFontFamily
+import com.example.ui.theme.JetBrainsMonoFontFamily
+import com.example.ui.theme.LocalSpacing
+import com.example.ui.theme.PlusJakartaFontFamily
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -194,11 +215,13 @@ class FrancaisProUiRobolectricTest {
             }
         }
 
-        composeRule.onNodeWithText("Objectif de la leçon").assertExists()
-        composeRule.onNodeWithText("Explication").assertExists()
-        composeRule.onNodeWithText("Règle à retenir").assertExists()
-        composeRule.onNodeWithText("Erreurs fréquentes").assertExists()
-        composeRule.onNodeWithText("Mini-exercice intégré").assertExists()
+        composeRule.onNodeWithText("Objectif du chapitre").assertExists()
+        composeRule.onNodeWithText("Cours & règles essentielles").assertExists()
+        composeRule.onNodeWithText("Exemples commentés").assertExists()
+        composeRule.onNodeWithText("Règle d'or à retenir").assertExists()
+        composeRule.onNodeWithText("Pièges fréquents à éviter").assertExists()
+        composeRule.onNodeWithText("Mise en pratique immédiate").assertExists()
+        composeRule.onNodeWithText("Validation du chapitre").assertExists()
     }
 
     @Test
@@ -531,5 +554,587 @@ class FrancaisProUiRobolectricTest {
         composeRule.onNodeWithTag("dash_word_of_the_day_card").performClick()
         composeRule.waitForIdle()
         assertEquals(Routes.wordDetail(sampleWord.id), navigatedRoute)
+    }
+
+    @Test
+    fun `academy screen enforces progressive level unlocking and shows lock notice`() {
+        val allLessons = AcademyLessonsSeed.lessons()
+        var openedLevel: String? = null
+        var openedLessonId: String? = null
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                AcademyScreen(
+                    lessons = allLessons,
+                    progress = emptyList(),
+                    onOpenLevelLessons = { openedLevel = it },
+                    onOpenDictionary = {},
+                    onOpenConjugation = {},
+                    onOpenVocabulary = {},
+                    onOpenLesson = { openedLessonId = it }
+                )
+            }
+        }
+
+        // CTA héro ouvre le premier chapitre débloqué de A1
+        composeRule.onNodeWithTag("academy_continue_btn").performClick()
+        composeRule.waitForIdle()
+        assertEquals("a1_ort_01", openedLessonId)
+
+        // Niveau A1 débloqué -> ouvre le parcours A1
+        composeRule.onNodeWithTag("academy_roadmap_list")
+            .performScrollToNode(hasTestTag("academy_level_A1"))
+        composeRule.onNodeWithTag("academy_level_A1").performClick()
+        composeRule.waitForIdle()
+        assertEquals("A1", openedLevel)
+
+        // Niveau A2 verrouillé -> n'ouvre pas A2 et affiche le bandeau explicatif
+        openedLevel = null
+        composeRule.onNodeWithTag("academy_roadmap_list")
+            .performScrollToNode(hasTestTag("academy_level_A2"))
+        composeRule.onNodeWithTag("academy_level_A2").performClick()
+        composeRule.waitForIdle()
+        assertEquals(null, openedLevel)
+        composeRule.onNodeWithTag("academy_roadmap_list")
+            .performScrollToNode(hasTestTag("academy_locked_banner"))
+        composeRule.onNodeWithTag("academy_locked_banner").assertIsDisplayed()
+    }
+
+    @Test
+    fun `lesson list screen locks chapter 2 until chapter 1 is completed`() {
+        val allLessons = AcademyLessonsSeed.lessons()
+        var openedLessonId: String? = null
+        val progressState = mutableStateOf<List<LessonProgress>>(emptyList())
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                LessonListScreen(
+                    level = "A1",
+                    lessons = allLessons,
+                    progress = progressState.value,
+                    onOpenLesson = { openedLessonId = it },
+                    onBack = {}
+                )
+            }
+        }
+
+        // Chapitre 2 verrouillé tant que chapitre 1 n'est pas validé
+        composeRule.onNodeWithTag("lesson_list_column")
+            .performScrollToNode(hasTestTag("lesson_card_a1_gram_01"))
+        composeRule.onNodeWithTag("lesson_card_a1_gram_01").performClick()
+        composeRule.waitForIdle()
+        assertEquals(null, openedLessonId)
+        composeRule.onNodeWithTag("lesson_list_column")
+            .performScrollToNode(hasTestTag("lesson_list_locked_banner"))
+        composeRule.onNodeWithTag("lesson_list_locked_banner").assertIsDisplayed()
+
+        // Une fois le chapitre 1 validé, le chapitre 2 devient accessible
+        progressState.value = listOf(LessonProgress(lessonId = "a1_ort_01", isCompleted = true, quizScorePercent = 90))
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("lesson_list_column")
+            .performScrollToNode(hasTestTag("lesson_card_a1_gram_01"))
+        composeRule.onNodeWithTag("lesson_card_a1_gram_01").performClick()
+        composeRule.waitForIdle()
+        assertEquals("a1_gram_01", openedLessonId)
+    }
+
+    @Test
+    fun `dictionary screen renders recent searches chips with select remove and clear actions`() {
+        val entries = DictionarySeed.entries().take(3)
+        val recents = listOf(
+            RecentDictionarySearch("eloquence", "Éloquence", 2000L),
+            RecentDictionarySearch("syntaxe", "Syntaxe", 1000L)
+        )
+        var selectedRecent: String? = null
+        var removedKey: String? = null
+        var cleared = false
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                DictionaryScreen(
+                    uiState = DictionaryUiState(
+                        query = "",
+                        results = entries,
+                        recentSearches = recents,
+                        categories = listOf("Tous"),
+                        totalCount = 48
+                    ),
+                    favorites = emptyList(),
+                    onQueryChange = {},
+                    onCategorySelected = {},
+                    onScopeSelected = {},
+                    onToggleFavoritesOnly = {},
+                    onClearFilters = {},
+                    onOpenWord = {},
+                    onSelectRecentSearch = { selectedRecent = it.queryText },
+                    onRemoveRecentSearch = { removedKey = it },
+                    onClearRecentSearches = { cleared = true },
+                    onBack = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("dict_recent_searches_section").assertIsDisplayed()
+        composeRule.onNodeWithTag("dict_recent_search_eloquence").performClick()
+        assertEquals("Éloquence", selectedRecent)
+
+        composeRule.onNodeWithTag("dict_remove_recent_search_syntaxe").performClick()
+        assertEquals("syntaxe", removedKey)
+
+        composeRule.onNodeWithTag("dict_clear_recent_searches_btn").performClick()
+        assertTrue(cleared)
+    }
+
+    @Test
+    fun `dashboard displays interactive daily quests card and navigates to target route`() {
+        var navigatedRoute: String? = null
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                DashboardScreen(
+                    profile = UserProfile(displayName = "Mendel", estimatedLevel = "A1", globalScore = 70),
+                    adaptiveSummary = AdaptiveProgressionEngine.computeProfileSummary("A1", 1, emptyList()),
+                    lessons = AcademyLessonsSeed.lessons().take(4),
+                    lessonProgress = emptyList(),
+                    exerciseAttempts = emptyList(),
+                    dailyGoals = emptyList(),
+                    dailyTargetMinutes = 15,
+                    onNavigate = { navigatedRoute = it },
+                    onStartCategoryTraining = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("dashboard_list")
+            .performScrollToNode(hasTestTag("dash_daily_quests_card"))
+        composeRule.onNodeWithText("Missions du jour").assertIsDisplayed()
+        composeRule.onNodeWithTag("dash_quest_lesson").performClick()
+        composeRule.waitForIdle()
+        assertEquals(Routes.ACADEMY, navigatedRoute)
+    }
+
+    @Test
+    fun `corrector studio renders readability metrics quality ring and category filters`() {
+        val engine = HybridCorrectionEngine()
+        val sample = "Je vais manger a midi et les enfants joue dans la cours."
+        val report = engine.analyze(sample)
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                CorrectorScreen(
+                    uiState = CorrectorUiState(
+                        inputText = sample,
+                        report = report
+                    ),
+                    sampleTexts = emptyList(),
+                    onTextChange = {},
+                    onAnalyze = {},
+                    onOpenResult = {},
+                    onLoadSample = {},
+                    onFixAll = {},
+                    onAcceptIssue = {},
+                    onDismissIssue = {},
+                    onUndo = {},
+                    onRedo = {},
+                    onClear = {},
+                    onOpenHistory = {},
+                    onOpenWritingWorkshop = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("corrector_list")
+            .performScrollToNode(hasTestTag("corrector_readability_bar"))
+        composeRule.onNodeWithTag("corrector_readability_bar").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("corrector_list")
+            .performScrollToNode(hasTestTag("corrector_quality_ring"))
+        composeRule.onNodeWithTag("corrector_quality_ring").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("corrector_list")
+            .performScrollToNode(hasTestTag("corrector_filter_ALL"))
+        composeRule.onNodeWithTag("corrector_filter_ALL").assertIsDisplayed()
+    }
+
+    @Test
+    fun `exercises screen launches express 5-question challenge mode`() {
+        val sampleExercises = ExercisesAndDictationsSeed.exercises().take(6)
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                ExercisesScreen(
+                    profile = UserProfile(displayName = "Mendel", streakDays = 3),
+                    exercises = sampleExercises,
+                    exerciseAttempts = emptyList(),
+                    statistics = emptyList(),
+                    initialCategoryFilter = null,
+                    onClearInitialCategoryFilter = {},
+                    onSubmitAnswer = { _, _, _ -> },
+                    onOpenDictation = {},
+                    onOpenSpeaking = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("exercises_daily_challenge_btn").assertIsDisplayed()
+        composeRule.onNodeWithTag("exercises_daily_challenge_btn").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Défi Express en cours").assertIsDisplayed()
+    }
+
+    @Test
+    fun `performance overview renders 30-day multi-skill chart, timeframe switch, and domain CTAs`() {
+        val dayMs = 86_400_000L
+        val fixedNow = 20_500L * dayMs + 12 * 3_600_000L
+        var navigatedRoute: String? = null
+        var grammarTrainClicked = false
+
+        val attempts = listOf(
+            ExerciseAttempt(exerciseId = "e1", category = "Grammaire", userAnswer = "a", isCorrect = false, scoreEarned = 0, attemptedAt = fixedNow - 18 * dayMs),
+            ExerciseAttempt(exerciseId = "e2", category = "Grammaire", userAnswer = "b", isCorrect = true, scoreEarned = 10, attemptedAt = fixedNow - 2 * dayMs)
+        )
+        val vocabProgress = listOf(
+            VocabularyProgress(wordId = "v1", repetitions = 2, intervalDays = 3, nextReviewAt = (fixedNow - 10 * dayMs) + 3 * dayMs, lastQuality = 4),
+            VocabularyProgress(wordId = "v2", repetitions = 3, intervalDays = 6, nextReviewAt = (fixedNow - 1 * dayMs) + 6 * dayMs, lastQuality = 5, mastered = true)
+        )
+        val corrections = listOf(
+            CorrectionHistory(
+                originalText = "Nous avons préparé une synthèse claire et rigoureuse.",
+                correctedText = "Nous avons préparé une synthèse claire et rigoureuse.",
+                errorsFoundCount = 0,
+                errorsAppliedCount = 0,
+                createdAt = fixedNow
+            )
+        )
+        val dictations = listOf(
+            DictationAttempt(dictationId = "d1", userText = "texte", scoreOutOf20 = 15f, mistakesCount = 2, summaryFeedback = "Très bien", attemptedAt = fixedNow - 12 * dayMs)
+        )
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                PerformanceOverviewScreen(
+                    lessons = AcademyLessonsSeed.lessons(),
+                    lessonProgress = emptyList(),
+                    exerciseAttempts = attempts,
+                    vocabularyProgress = vocabProgress,
+                    correctionHistory = corrections,
+                    dictationAttempts = dictations,
+                    onNavigate = { navigatedRoute = it },
+                    onTrainGrammar = { grammarTrainClicked = true },
+                    onBack = {},
+                    nowMillis = fixedNow
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("perf_hero_card").assertIsDisplayed()
+        composeRule.onNodeWithTag("perf_range_7").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Tendances sur 7 jours").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("perf_range_30").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Tendances sur 30 jours").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("performance_overview_list")
+            .performScrollToNode(hasTestTag("performance_trend_chart"))
+        composeRule.onNodeWithTag("performance_trend_chart").assertIsDisplayed()
+        composeRule.onNodeWithTag("performance_tooltip_card").assertIsDisplayed()
+
+        // Filtres de séries + navigation journalière
+        composeRule.onNodeWithTag("perf_toggle_VOCABULARY").performClick()
+        composeRule.onNodeWithTag("perf_day_prev").performClick()
+
+        // Cartes par compétence et CTA
+        composeRule.onNodeWithTag("performance_overview_list")
+            .performScrollToNode(hasTestTag("perf_domain_card_GRAMMAR"))
+        composeRule.onNodeWithTag("perf_train_GRAMMAR").performClick()
+        assertTrue(grammarTrainClicked)
+
+        composeRule.onNodeWithTag("performance_overview_list")
+            .performScrollToNode(hasTestTag("perf_domain_card_WRITING"))
+        composeRule.onNodeWithTag("perf_train_WRITING").performClick()
+        assertEquals(Routes.CORRECTOR, navigatedRoute)
+    }
+
+    @Test
+    fun `performance overview shows honest empty coaching state when no activity exists`() {
+        var startedTraining = false
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                PerformanceOverviewScreen(
+                    lessons = emptyList(),
+                    lessonProgress = emptyList(),
+                    exerciseAttempts = emptyList(),
+                    vocabularyProgress = emptyList(),
+                    correctionHistory = emptyList(),
+                    dictationAttempts = emptyList(),
+                    onNavigate = {},
+                    onTrainGrammar = { startedTraining = true },
+                    onBack = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("perf_empty_callout").assertIsDisplayed()
+        composeRule.onNodeWithTag("perf_empty_start_btn").performClick()
+        assertTrue(startedTraining)
+    }
+
+    @Test
+    fun `design system tokens expose exact typography scale spacing grid shapes and syntax colors`() {
+        assertEquals(Color(0xFF7C3AED), FrancaisProPalette.Light.syntaxViolet)
+        assertEquals(Color(0xFF356AE6), FrancaisProPalette.Light.styleBlue)
+        assertEquals(Color(0xFFEEF2F8), FrancaisProPalette.Light.surfaceSubtle)
+        assertEquals(Color(0xFFA78BFA), FrancaisProPalette.Dark.syntaxViolet)
+        assertEquals(Color(0xFF7098FF), FrancaisProPalette.Dark.styleBlue)
+        assertEquals(Color(0xFF24344D), FrancaisProPalette.Dark.border)
+
+        assertEquals(FrauncesFontFamily, FrancaisProTypography.displayLarge.fontFamily)
+        assertEquals(32.sp, FrancaisProTypography.displayLarge.fontSize)
+        assertEquals(FrauncesFontFamily, FrancaisProTypography.displaySmall.fontFamily)
+        assertEquals(24.sp, FrancaisProTypography.displaySmall.fontSize)
+        assertEquals(PlusJakartaFontFamily, FrancaisProTypography.headlineLarge.fontFamily)
+        assertEquals(26.sp, FrancaisProTypography.headlineLarge.fontSize)
+        assertEquals(PlusJakartaFontFamily, FrancaisProTypography.bodyLarge.fontFamily)
+        assertEquals(16.sp, FrancaisProTypography.bodyLarge.fontSize)
+        assertEquals(JetBrainsMonoFontFamily, FrancaisProTextStyles.MonoMetric.fontFamily)
+        assertEquals(JetBrainsMonoFontFamily, FrancaisProTextStyles.MonoLarge.fontFamily)
+
+        assertEquals(4.dp, FrancaisProDimens.Space4)
+        assertEquals(8.dp, FrancaisProDimens.Space8)
+        assertEquals(12.dp, FrancaisProDimens.Space12)
+        assertEquals(16.dp, FrancaisProDimens.Space16)
+        assertEquals(20.dp, FrancaisProDimens.Space20)
+        assertEquals(24.dp, FrancaisProDimens.Space24)
+        assertEquals(32.dp, FrancaisProDimens.Space32)
+        assertEquals(16.dp, FrancaisProDimens.screenHorizontalPadding(360.dp))
+        assertEquals(20.dp, FrancaisProDimens.screenHorizontalPadding(412.dp))
+        assertEquals(1.dp, FrancaisProDimens.BorderStrokeWidth)
+
+        var capturedSpacingOk = false
+        var capturedSemanticOk = false
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                val spacing = LocalSpacing.current
+                val tokensSpacing = FrancaisProThemeTokens.spacing
+                val tokensColors = FrancaisProThemeTokens.colors
+                capturedSpacingOk = spacing == tokensSpacing &&
+                    spacing.space16 == 16.dp &&
+                    spacing.cardElevation == 1.dp &&
+                    spacing.elevatedCardElevation == 2.dp
+                capturedSemanticOk = tokensColors.syntaxColor == Color(0xFF7C3AED) &&
+                    tokensColors.styleColor == Color(0xFF356AE6) &&
+                    FrancaisProShapes.small != FrancaisProShapes.medium
+            }
+        }
+        assertTrue(capturedSpacingOk)
+        assertTrue(capturedSemanticOk)
+    }
+
+    @Test
+    fun `dictionary card quick audio button speaks entry word`() {
+        var spokenWord: String? = null
+        val entries = DictionarySeed.entries().take(2)
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                DictionaryScreen(
+                    uiState = DictionaryUiState(
+                        query = "",
+                        results = entries,
+                        categories = listOf("Tous"),
+                        totalCount = 48
+                    ),
+                    favorites = emptyList(),
+                    onQueryChange = {},
+                    onCategorySelected = {},
+                    onScopeSelected = {},
+                    onToggleFavoritesOnly = {},
+                    onClearFilters = {},
+                    onOpenWord = {},
+                    onSpeakWord = { spokenWord = it },
+                    onBack = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("dict_speak_${entries.first().id}").performClick()
+        assertEquals(entries.first().word, spokenWord)
+    }
+
+    @Test
+    fun `dashboard progress trends card navigates to performance overview`() {
+        var navigatedRoute: String? = null
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                DashboardScreen(
+                    profile = UserProfile(displayName = "Mendel", estimatedLevel = "B1", globalScore = 75),
+                    adaptiveSummary = AdaptiveProgressionEngine.computeProfileSummary("B1", 4, emptyList()),
+                    lessons = emptyList(),
+                    lessonProgress = emptyList(),
+                    exerciseAttempts = emptyList(),
+                    dailyGoals = emptyList(),
+                    dailyTargetMinutes = 15,
+                    onNavigate = { navigatedRoute = it },
+                    onStartCategoryTraining = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("dashboard_list")
+            .performScrollToNode(hasTestTag("dash_progress_trends_link"))
+        composeRule.onNodeWithTag("dash_progress_trends_link").performClick()
+        assertEquals(Routes.PERFORMANCE_OVERVIEW, navigatedRoute)
+    }
+
+    @Test
+    fun `academy screen displays achievements showcase with filter chips and category launch`() {
+        val allLessons = AcademyLessonsSeed.lessons()
+        val seededAchievements = DictionarySeed.achievements().map {
+            if (it.id == "ach_first_lesson") it.copy(isUnlocked = true, unlockedAt = 1234L) else it
+        }
+        var launchedCategory: String? = null
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                AcademyScreen(
+                    lessons = allLessons,
+                    progress = listOf(LessonProgress(lessonId = "a1_ort_01", isCompleted = true, quizScorePercent = 90)),
+                    onOpenLevelLessons = {},
+                    onOpenDictionary = {},
+                    onOpenConjugation = {},
+                    onOpenVocabulary = {},
+                    achievements = seededAchievements,
+                    onStartCategoryTraining = { launchedCategory = it }
+                )
+            }
+        }
+
+        // Pilule compteur visible dans l'en-tête
+        composeRule.onNodeWithTag("academy_badges_header_pill").assertIsDisplayed()
+
+        // Défilement vers la section Badges & Réussites
+        composeRule.onNodeWithTag("academy_roadmap_list")
+            .performScrollToNode(hasTestTag("academy_achievements_section"))
+        composeRule.onNodeWithText("Badges & Réussites").assertIsDisplayed()
+
+        // Vérifier le filtre Débloqués
+        composeRule.onNodeWithTag("academy_badge_filter_UNLOCKED").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("academy_roadmap_list")
+            .performScrollToNode(hasTestTag("academy_badge_ach_first_lesson"))
+        composeRule.onNodeWithTag("academy_badge_ach_first_lesson").assertIsDisplayed()
+
+        // Vérifier le filtre À débloquer et le badge Gourou de la grammaire
+        composeRule.onNodeWithTag("academy_badge_filter_LOCKED").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("academy_roadmap_list")
+            .performScrollToNode(hasTestTag("academy_badge_ach_grammar_guru"))
+        composeRule.onNodeWithTag("academy_badge_ach_grammar_guru").performClick()
+        composeRule.waitForIdle()
+        assertEquals("Grammaire", launchedCategory)
+    }
+
+    @Test
+    fun `onboarding interactive demo and recap flow completes with custom name and daily goal`() {
+        var finishedName: String? = null
+        var finishedGoal: Int? = null
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                OnboardingScreen(
+                    onFinishOnboarding = { name, goal, _, _ ->
+                        finishedName = name
+                        finishedGoal = goal
+                    },
+                    onSkipToDashboard = {}
+                )
+            }
+        }
+
+        // Étape 1 -> 2
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick()
+        composeRule.waitForIdle()
+
+        // Étape 2 : essai interactif du correcteur hors ligne
+        composeRule.onNodeWithTag("onboarding_try_corrector_btn").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("« Ils sont partis tôt. »").assertIsDisplayed()
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick()
+
+        // Étape 3 : Académie + aperçu des badges
+        composeRule.onNodeWithText("Gourou de la grammaire").assertExists()
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick()
+
+        // Étape 4 : Hors ligne -> Étape 5 : Évaluation
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick()
+        composeRule.onNodeWithTag("onboarding_skip_assessment_btn").performClick()
+
+        // Étape 6 : Profil -> saisie du prénom -> Étape 7
+        composeRule.onNodeWithTag("onboarding_name_input").performScrollTo()
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick()
+
+        // Étape 7 : choix de l'objectif 10 min + récapitulatif
+        composeRule.onNodeWithTag("onboarding_goal_10").performScrollTo().performClick()
+        composeRule.onNodeWithTag("onboarding_summary_card").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("onboarding_finish_btn").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals("", finishedName)
+        assertEquals(10, finishedGoal)
+    }
+
+    @Test
+    fun `academy daily streak card displays 7-day tracker shields and claims unlocked milestone reward`() {
+        val todayEpoch = System.currentTimeMillis() / 86_400_000L
+        val state = com.example.core.database.StreakState(
+            currentStreak = 3,
+            bestStreak = 4,
+            lastPracticeEpochDay = todayEpoch,
+            freezeTokensAvailable = 2,
+            totalBonusXpEarned = 0,
+            totalAcademySessions = 5
+        )
+        val days = listOf(
+            com.example.core.database.AcademyPracticeDay(epochDay = todayEpoch - 2, lessonsCompletedCount = 1, streakQualifies = true),
+            com.example.core.database.AcademyPracticeDay(epochDay = todayEpoch - 1, streakQualifies = true, isFreezeUsed = true),
+            com.example.core.database.AcademyPracticeDay(epochDay = todayEpoch, exercisesCompletedCount = 1, streakQualifies = true)
+        )
+        val rewards = com.example.learning.progression.AcademyStreakEngine.defaultRewards().map { reward ->
+            if (reward.id == "streak_reward_3") reward.copy(isUnlocked = true, unlockedAt = 1000L) else reward
+        }
+        val summary = com.example.learning.progression.AcademyStreakEngine.buildSummary(state, days, rewards)
+        var claimedRewardId: String? = null
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                AcademyScreen(
+                    lessons = AcademyLessonsSeed.lessons(),
+                    progress = emptyList(),
+                    onOpenLevelLessons = {},
+                    onOpenDictionary = {},
+                    onOpenConjugation = {},
+                    onOpenVocabulary = {},
+                    streakSummary = summary,
+                    streakState = state,
+                    onClaimStreakReward = { claimedRewardId = it }
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("academy_roadmap_list")
+            .performScrollToNode(hasTestTag("academy_streak_card"))
+        composeRule.onNodeWithTag("academy_streak_card").assertIsDisplayed()
+        composeRule.onNodeWithText("3 jours de série").assertIsDisplayed()
+        composeRule.onNodeWithTag("streak_7day_strip").assertIsDisplayed()
+        composeRule.onNodeWithTag("streak_day_dot_6").assertIsDisplayed()
+        composeRule.onNodeWithTag("streak_freeze_chip").assertIsDisplayed()
+
+        composeRule.onNodeWithTag("streak_claim_streak_reward_3").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        assertEquals("streak_reward_3", claimedRewardId)
     }
 }

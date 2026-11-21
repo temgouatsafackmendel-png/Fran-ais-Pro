@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,9 +33,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.example.core.database.Achievement
 import com.example.core.database.CorrectionHistory
 import com.example.core.database.DailyGoal
@@ -73,6 +80,7 @@ fun StatisticsScreen(
     exerciseAttempts: List<ExerciseAttempt>,
     dictationAttempts: List<DictationAttempt>,
     achievements: List<Achievement>,
+    onOpenPerformanceOverview: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val semantic = LocalSemanticColors.current
@@ -154,6 +162,59 @@ fun StatisticsScreen(
                         accentContainer = semantic.successContainer,
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+
+            // Passerelle vers la page Aperçu des performances (tendances 30 jours)
+            item {
+                EditorialCard(
+                    onClick = onOpenPerformanceOverview,
+                    borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    modifier = Modifier.testTag("stats_open_performance_btn")
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(44.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ShowChart,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = "Aperçu des performances (30 jours)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Tendances interactives en Grammaire, Vocabulaire et Écriture",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = semantic.textSecondary
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Ouvrir l'aperçu des performances",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
@@ -244,8 +305,8 @@ fun StatisticsScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                Icons.Filled.EmojiEvents,
-                                contentDescription = null,
+                                com.example.core.design.CurriculumIcons.forAchievement(ach.iconName),
+                                contentDescription = ach.title,
                                 tint = if (ach.isUnlocked) semantic.success else semantic.textSecondary
                             )
                             Column {

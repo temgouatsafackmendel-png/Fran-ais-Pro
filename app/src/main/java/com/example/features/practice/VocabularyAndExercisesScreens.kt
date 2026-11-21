@@ -4,8 +4,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -24,18 +26,27 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -64,6 +75,7 @@ import com.example.core.design.AppIconButton
 import com.example.core.design.AppTopBar
 import com.example.core.design.CategoryBadge
 import com.example.core.design.CefrLevelPill
+import com.example.core.design.CurriculumIcons
 import com.example.core.design.EditorialCard
 import com.example.core.design.EmptyState
 import com.example.core.design.ExerciseCard
@@ -75,6 +87,7 @@ import com.example.ui.theme.FrancaisProDimens
 import com.example.ui.theme.FrancaisProTextStyles
 import com.example.ui.theme.LocalReducedMotion
 import com.example.ui.theme.LocalSemanticColors
+import com.example.ui.theme.LocalSpacing
 
 private data class SessionRecord(
     val prompt: String,
@@ -111,9 +124,13 @@ fun ExercisesScreen(
         }
     }
 
-    // Suivi de la session en cours (résumé de session après 3 exercices ou à la demande)
+    // Suivi de la session en cours (Défi Express 5 questions + Combo en direct)
     val sessionHistory = remember { mutableStateListOf<SessionRecord>() }
     var showSessionResult by remember { mutableStateOf(false) }
+    var expressChallengeActive by remember { mutableStateOf(false) }
+    var currentCombo by remember { mutableIntStateOf(0) }
+    var bestCombo by remember { mutableIntStateOf(0) }
+    val sessionTargetSize = if (expressChallengeActive) 5 else 3
 
     val levels = listOf("Tous", "A1", "A2", "B1", "B2", "C1", "C2")
     val categories = remember(exercises) { listOf("Toutes") + exercises.map { it.category }.distinct() }
@@ -123,6 +140,11 @@ fun ExercisesScreen(
     val totalXp = remember(exerciseAttempts) {
         exerciseAttempts.count { it.isCorrect } * 15
     }
+    val accuracyPct = remember(exerciseAttempts) {
+        if (exerciseAttempts.isEmpty()) null
+        else (exerciseAttempts.count { it.isCorrect } * 100) / exerciseAttempts.size
+    }
+    var reviewMistakesOnly by remember { mutableStateOf(false) }
 
     val filtered = remember(exercises, selectedLevel, selectedCategory, weakCategory) {
         exercises
@@ -135,21 +157,22 @@ fun ExercisesScreen(
 
     val activeExercise = filtered.firstOrNull { it.id == activeExerciseId } ?: filtered.firstOrNull()
 
+    val spacing = LocalSpacing.current
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.TopCenter
     ) {
-        val hPadding = FrancaisProDimens.screenHorizontalPadding(maxWidth)
+        val hPadding = spacing.screenHorizontalPadding(maxWidth)
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = FrancaisProDimens.MaxContentWidth),
-            contentPadding = PaddingValues(horizontal = hPadding, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .widthIn(max = spacing.maxContentWidth),
+            contentPadding = PaddingValues(horizontal = hPadding, vertical = spacing.space16),
+            verticalArrangement = Arrangement.spacedBy(spacing.space16)
         ) {
-            // En-tête + Gamification adulte sobre (XP, Série, Défi)
+            // En-tête + Gamification adulte sobre (XP, Précision, Série, Défi)
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -164,7 +187,15 @@ fun ExercisesScreen(
                             color = semantic.textSecondary
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (accuracyPct != null) {
+                            CategoryBadge(
+                                label = "$accuracyPct %",
+                                color = semantic.success,
+                                containerColor = semantic.successContainer,
+                                icon = Icons.Filled.CheckCircle
+                            )
+                        }
                         CategoryBadge(
                             label = "$totalXp XP",
                             color = MaterialTheme.colorScheme.primary,
@@ -181,7 +212,108 @@ fun ExercisesScreen(
                 }
             }
 
-            // Accès Dictée & Expression orale
+            // Carte Défi Express 5 questions (mode sprint inspiré des meilleures apps)
+            if (!showSessionResult) {
+                item(key = "express_challenge_card") {
+                    Surface(
+                        shape = RoundedCornerShape(FrancaisProDimens.RadiusCard),
+                        color = if (expressChallengeActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                        else semantic.navyHeader,
+                        border = BorderStroke(
+                            1.dp,
+                            if (expressChallengeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                            else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.08f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = if (expressChallengeActive) MaterialTheme.colorScheme.primary
+                                        else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.14f),
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Filled.FlashOn,
+                                                contentDescription = null,
+                                                tint = if (expressChallengeActive) androidx.compose.ui.graphics.Color.White else semantic.warning,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    Column {
+                                        Text(
+                                            text = if (expressChallengeActive) "Défi Express en cours" else "Défi Express · 5 questions",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (expressChallengeActive) MaterialTheme.colorScheme.onSurface else semantic.onNavyHeader
+                                        )
+                                        Text(
+                                            text = if (expressChallengeActive) {
+                                                "Progression : ${sessionHistory.size}/$sessionTargetSize · ${sessionHistory.count { it.isCorrect }} bonne(s) réponse(s)"
+                                            } else {
+                                                "Enchaînez 5 exercices ciblés pour booster vos automatismes (+75 XP)"
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (expressChallengeActive) semantic.textSecondary else semantic.onNavyHeader.copy(alpha = 0.78f)
+                                        )
+                                    }
+                                }
+                                if (currentCombo >= 2) {
+                                    CategoryBadge(
+                                        label = "Combo x$currentCombo",
+                                        color = semantic.warning,
+                                        containerColor = semantic.warningContainer,
+                                        icon = Icons.Filled.LocalFireDepartment,
+                                        modifier = Modifier.testTag("exercises_combo_badge")
+                                    )
+                                }
+                            }
+
+                            if (expressChallengeActive) {
+                                LinearProgressIndicator(
+                                    progress = { (sessionHistory.size.toFloat() / sessionTargetSize).coerceIn(0f, 1f) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = semantic.surfaceSubtle
+                                )
+                            } else {
+                                PrimaryButton(
+                                    text = "Lancer le Défi Express",
+                                    icon = Icons.AutoMirrored.Filled.ArrowForward,
+                                    containerColor = semantic.primaryBlue,
+                                    contentColor = androidx.compose.ui.graphics.Color.White,
+                                    onClick = {
+                                        expressChallengeActive = true
+                                        sessionHistory.clear()
+                                        currentCombo = 0
+                                        bestCombo = 0
+                                        selectedLevel = "Tous"
+                                        selectedCategory = "Toutes"
+                                        activeExerciseId = filtered.firstOrNull()?.id
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("exercises_daily_challenge_btn")
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Accès Dictée & Expression orale avec badges d'icônes modernes
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -195,7 +327,15 @@ fun ExercisesScreen(
                             .testTag("exercises_open_dictation")
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Icon(Icons.Filled.Mic, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Filled.Mic, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                }
+                            }
                             Column {
                                 Text("Dictées", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                 Text("Audio & note /20", style = MaterialTheme.typography.bodySmall, color = semantic.textSecondary)
@@ -210,7 +350,15 @@ fun ExercisesScreen(
                             .testTag("exercises_open_speaking")
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = semantic.syntaxContainer,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Filled.RecordVoiceOver, contentDescription = null, tint = semantic.syntaxColor, modifier = Modifier.size(18.dp))
+                                }
+                            }
                             Column {
                                 Text("Oral", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                                 Text("Prononciation", style = MaterialTheme.typography.bodySmall, color = semantic.textSecondary)
@@ -220,7 +368,7 @@ fun ExercisesScreen(
                 }
             }
 
-            // Défi du jour sobre
+            // Résumé rapide de session en cours
             if (sessionHistory.isNotEmpty() && !showSessionResult) {
                 item {
                     EditorialCard(
@@ -238,7 +386,7 @@ fun ExercisesScreen(
                             ) {
                                 Icon(Icons.Filled.EmojiEvents, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                 Text(
-                                    "Session en cours : ${sessionHistory.count { it.isCorrect }}/${sessionHistory.size} réussite(s)",
+                                    "Session : ${sessionHistory.count { it.isCorrect }}/${sessionHistory.size} · Meilleur combo x$bestCombo",
                                     style = MaterialTheme.typography.labelLarge
                                 )
                             }
@@ -264,9 +412,28 @@ fun ExercisesScreen(
                             message = "$correctCount bonne(s) réponse(s) · $wrongCount à revoir · +${correctCount * 15} XP."
                         )
                         EditorialCard {
-                            Text("Explications de la session", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Explications de la session", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                if (wrongCount > 0) {
+                                    FilterChip(
+                                        selected = reviewMistakesOnly,
+                                        onClick = { reviewMistakesOnly = !reviewMistakesOnly },
+                                        label = { Text("À revoir ($wrongCount)") },
+                                        modifier = Modifier.testTag("exercise_review_mistakes_chip")
+                                    )
+                                }
+                            }
                             Spacer(Modifier.height(8.dp))
-                            sessionHistory.forEachIndexed { idx, rec ->
+                            val shownRecords = if (reviewMistakesOnly && wrongCount > 0) {
+                                sessionHistory.filter { !it.isCorrect }
+                            } else {
+                                sessionHistory
+                            }
+                            shownRecords.forEachIndexed { idx, rec ->
                                 if (idx > 0) Spacer(Modifier.height(8.dp))
                                 Text(
                                     text = "${if (rec.isCorrect) "✓" else "✕"} ${rec.prompt}",
@@ -286,22 +453,33 @@ fun ExercisesScreen(
                                 icon = Icons.Filled.Refresh,
                                 onClick = {
                                     sessionHistory.clear()
+                                    currentCombo = 0
+                                    bestCombo = 0
+                                    reviewMistakesOnly = false
                                     showSessionResult = false
                                 },
                                 modifier = Modifier.weight(1f)
                             )
                             PrimaryButton(
                                 text = "Continuer",
-                                onClick = { showSessionResult = false },
+                                onClick = {
+                                    expressChallengeActive = false
+                                    showSessionResult = false
+                                },
                                 modifier = Modifier.weight(1f)
                             )
                         }
                     }
                 }
             } else {
-                // Filtres rapides
+                // Filtres rapides avec icônes modernes par thème
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionHeader(
+                            title = "Filtrer la banque d'exercices",
+                            subtitle = "Par niveau CECRL ou par domaine linguistique",
+                            icon = Icons.Filled.Tune
+                        )
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(levels) { lvl ->
                                 FilterChip(
@@ -322,6 +500,15 @@ fun ExercisesScreen(
                                         selectedCategory = cat
                                         activeExerciseId = null
                                     },
+                                    leadingIcon = if (cat != "Toutes") {
+                                        {
+                                            Icon(
+                                                imageVector = CurriculumIcons.forTheme(cat),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    } else null,
                                     label = { Text(cat) }
                                 )
                             }
@@ -348,6 +535,12 @@ fun ExercisesScreen(
                             exercise = activeExercise,
                             onSubmit = { ans, ok ->
                                 onSubmitAnswer(activeExercise, ans, ok)
+                                if (ok) {
+                                    currentCombo++
+                                    if (currentCombo > bestCombo) bestCombo = currentCombo
+                                } else {
+                                    currentCombo = 0
+                                }
                                 sessionHistory.add(
                                     SessionRecord(
                                         prompt = activeExercise.promptText,
@@ -358,7 +551,7 @@ fun ExercisesScreen(
                                 )
                             },
                             onNext = {
-                                if (sessionHistory.size >= 3 && sessionHistory.size % 3 == 0) {
+                                if (sessionHistory.size >= sessionTargetSize && sessionHistory.size % sessionTargetSize == 0) {
                                     showSessionResult = true
                                 }
                                 val idx = filtered.indexOfFirst { it.id == activeExercise.id }
@@ -369,7 +562,11 @@ fun ExercisesScreen(
                     }
 
                     item {
-                        SectionHeader(title = "Exercices disponibles (${filtered.size})")
+                        SectionHeader(
+                            title = "Exercices disponibles (${filtered.size})",
+                            subtitle = "Touchez un exercice pour le lancer directement",
+                            icon = Icons.Filled.FitnessCenter
+                        )
                     }
                     items(filtered, key = { "list_${it.id}" }) { ex ->
                         ExerciseCard(
@@ -585,6 +782,42 @@ fun VocabularyScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item(key = "vocab_mastery_bar") {
+                val ratio = if (words.isEmpty()) 0f else masteredCount.toFloat() / words.size
+                EditorialCard(contentPadding = 14.dp) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Text(
+                                text = "Maîtrise du vocabulaire",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            text = "$masteredCount / ${words.size}",
+                            style = FrancaisProTextStyles.MonoMetric,
+                            color = semantic.success,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { ratio.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = semantic.success,
+                        trackColor = semantic.surfaceSubtle
+                    )
+                }
+            }
+
             item {
                 EditorialCard(contentPadding = 20.dp) {
                     Row(
@@ -682,7 +915,7 @@ fun VocabularyScreen(
                         }
 
                         Spacer(Modifier.height(16.dp))
-                        Text("Mémoriser (répétition espacée)", style = MaterialTheme.typography.labelLarge)
+                        Text("Mémoriser (répétition espacée SM-2)", style = MaterialTheme.typography.labelLarge)
                         Spacer(Modifier.height(8.dp))
                         val advance: (Int) -> Unit = { q ->
                             onReviewQuality(currentWord.id, q)
@@ -696,11 +929,13 @@ fun VocabularyScreen(
                         ) {
                             SecondaryButton(
                                 text = "À revoir",
+                                icon = Icons.Filled.Replay,
                                 onClick = { advance(1) },
                                 modifier = Modifier.weight(1f).testTag("vocab_rate_again")
                             )
                             SecondaryButton(
                                 text = "Difficile",
+                                icon = Icons.Filled.Refresh,
                                 onClick = { advance(3) },
                                 modifier = Modifier.weight(1f).testTag("vocab_rate_hard")
                             )
@@ -712,12 +947,14 @@ fun VocabularyScreen(
                         ) {
                             PrimaryButton(
                                 text = "Bien",
+                                icon = Icons.Filled.ThumbUp,
                                 containerColor = semantic.success,
                                 onClick = { advance(4) },
                                 modifier = Modifier.weight(1f).testTag("vocab_rate_good")
                             )
                             PrimaryButton(
                                 text = "Facile",
+                                icon = Icons.Filled.Bolt,
                                 onClick = { advance(5) },
                                 modifier = Modifier.weight(1f).testTag("vocab_rate_easy")
                             )
@@ -727,7 +964,11 @@ fun VocabularyScreen(
             }
 
             item {
-                SectionHeader(title = "Tous les mots (${words.size})")
+                SectionHeader(
+                    title = "Tous les mots (${words.size})",
+                    subtitle = "Touchez un mot pour ouvrir directement sa fiche",
+                    icon = Icons.Filled.Bookmark
+                )
             }
             items(words, key = { it.id }) { w ->
                 val p = progressMap[w.id]

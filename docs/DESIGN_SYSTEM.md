@@ -31,7 +31,7 @@ Toutes les couleurs sont déclarées dans `ui/theme/Color.kt` et consommées via
 
 Polices embarquées localement (`res/font/`) : **Plus Jakarta Sans** (interface et lecture), **Fraunces** (accents *Display*), **JetBrains Mono** (compteurs, scores, phonétique).
 
-- `Display` : 32 sp / 38 sp
+- `Display` : 32 sp / 38 sp (avec `displayMedium` 28 sp et `displaySmall` 24 sp)
 - `Heading 1` : 26 sp / 32 sp
 - `Heading 2` : 21 sp / 27 sp
 - `Heading 3` : 17 sp / 23 sp
@@ -39,15 +39,15 @@ Polices embarquées localement (`res/font/`) : **Plus Jakarta Sans** (interface 
 - `Body Medium` : 14 sp / 21 sp
 - `Body Small` : 13 sp / 19 sp
 - `Caption` : 12 sp / 16 sp
-- `Label` : 12 sp semi-gras
+- `Label` : 12 sp semi-gras (`MonoMetric` 12 sp et `MonoLarge` 18 sp en *JetBrains Mono*)
 
 ---
 
-## 3. Grille d'Espacement & Rayons
+## 3. Grille d'Espacement, Rayons & Tokens
 
-- **Grille** : multiples stricts de `4 dp` (`4, 8, 12, 16, 20, 24, 32 dp`).
+- **Grille** : multiples stricts de `4 dp` (`4, 8, 12, 16, 20, 24, 32 dp`), injectés via `FrancaisProSpacing` / `LocalSpacing.current` et accessibles via `FrancaisProThemeTokens`.
 - **Marges adaptatives** : `16 dp` sur écrans compacts (`< 412 dp`), `20 dp` sur écrans plus larges (`>= 412 dp`), largeur de contenu plafonnée à `720 dp` sur tablettes.
-- **Rayons** : `10 dp` (petits composants/badges), `14 dp` (boutons/champs), `18 dp` (cartes), `24 dp` (grandes surfaces et BottomSheets).
+- **Rayons & Élévations** : `10 dp` (petits composants/badges), `14 dp` (boutons/champs), `18 dp` (cartes), `24 dp` (grandes surfaces et BottomSheets), `999 dp` (`RadiusPill`), bordures `1 dp` (`BorderStrokeWidth`) et élévations maîtrisées (`1 dp` / `2 dp`).
 
 ---
 

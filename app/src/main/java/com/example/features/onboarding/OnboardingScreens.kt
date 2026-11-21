@@ -1,10 +1,16 @@
 package com.example.features.onboarding
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -38,6 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Spellcheck
@@ -51,6 +58,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -67,6 +75,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -183,13 +192,15 @@ fun SplashScreen(
 @Composable
 fun OnboardingScreen(
     onFinishOnboarding: (displayName: String, dailyGoalMinutes: Int, placementCorrect: Int?, placementTotal: Int?) -> Unit,
-    onSkipToDashboard: (displayName: String) -> Unit
+    onSkipToDashboard: (displayName: String) -> Unit,
+    onReminderOptIn: (enabled: Boolean, hour: Int) -> Unit = { _, _ -> }
 ) {
     val stepTitles = listOf("Bienvenue", "Correcteur", "Académie", "Hors ligne", "Niveau", "Profil", "Objectif")
     val totalSteps = stepTitles.size
     var step by rememberSaveable { mutableIntStateOf(0) } // 0..6
     var displayName by rememberSaveable { mutableStateOf("") }
     var selectedGoalMinutes by rememberSaveable { mutableIntStateOf(15) }
+    var reminderOptIn by rememberSaveable { mutableStateOf(false) }
     var demoCorrectionApplied by rememberSaveable { mutableStateOf(false) }
 
     // État interne de l'évaluation initiale (étape 5 = index 4)
@@ -200,6 +211,13 @@ fun OnboardingScreen(
     var qCorrectCount by rememberSaveable { mutableIntStateOf(0) }
     var assessmentDone by rememberSaveable { mutableStateOf(false) }
     var assessmentTaken by rememberSaveable { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        reminderOptIn = granted
+    }
 
     val semantic = LocalSemanticColors.current
     val reducedMotion = LocalReducedMotion.current
@@ -728,6 +746,56 @@ fun OnboardingScreen(
                                 }
                             }
                         }
+                        EditorialCard(
+                            contentPadding = 14.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.NotificationsActive,
+                                        contentDescription = null,
+                                        tint = if (reminderOptIn) semantic.success else MaterialTheme.colorScheme.primary
+                                    )
+                                    Column {
+                                        Text(
+                                            text = "Rappel de série à 19h00",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Uniquement si votre session Académie du jour n'est pas validée.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = semantic.textSecondary
+                                        )
+                                    }
+                                }
+                                Switch(
+                                    checked = reminderOptIn,
+                                    onCheckedChange = { enable ->
+                                        if (enable && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            val granted = ContextCompat.checkSelfPermission(
+                                                context,
+                                                Manifest.permission.POST_NOTIFICATIONS
+                                            ) == PackageManager.PERMISSION_GRANTED
+                                            if (!granted) {
+                                                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                                return@Switch
+                                            }
+                                        }
+                                        reminderOptIn = enable
+                                    },
+                                    modifier = Modifier.testTag("onboarding_reminder_toggle")
+                                )
+                            }
+                        }
                         val previewLevel = if (assessmentTaken) {
                             AdaptiveProgressionEngine.estimateLevelFromPlacement(qCorrectCount, questions.size)
                         } else "A1"
@@ -758,6 +826,14 @@ fun OnboardingScreen(
                                     containerColor = semantic.successContainer,
                                     icon = Icons.Filled.Timer
                                 )
+                                if (reminderOptIn) {
+                                    CategoryBadge(
+                                        label = "Rappel 19h00",
+                                        color = semantic.warning,
+                                        containerColor = semantic.warningContainer,
+                                        icon = Icons.Filled.NotificationsActive
+                                    )
+                                }
                                 CefrLevelPill(level = previewLevel)
                             }
                         }
@@ -795,6 +871,7 @@ fun OnboardingScreen(
                 PrimaryButton(
                     text = "Commencer avec Français Pro",
                     onClick = {
+                        onReminderOptIn(reminderOptIn, 19)
                         onFinishOnboarding(
                             displayName,
                             selectedGoalMinutes,

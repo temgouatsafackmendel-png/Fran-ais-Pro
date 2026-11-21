@@ -1137,4 +1137,82 @@ class FrancaisProUiRobolectricTest {
         composeRule.waitForIdle()
         assertEquals("streak_reward_3", claimedRewardId)
     }
+
+    @Test
+    fun `settings screen reminder controls select hour and reflect daily streak requirement status`() {
+        val app = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.app.Application>()
+        org.robolectric.Shadows.shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
+        if (!androidx.work.WorkManager.isInitialized()) {
+            androidx.work.WorkManager.initialize(app, androidx.work.Configuration.Builder().build())
+        }
+
+        var updatedEnabled = false
+        var updatedHour = 19
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                com.example.features.profile.SettingsScreen(
+                    prefs = com.example.core.datastore.LocalUserPreferences(
+                        dailyReminderEnabled = true,
+                        reminderHour = 19
+                    ),
+                    onThemeModeChange = {},
+                    onDailyGoalChange = {},
+                    onSpeechRateChange = {},
+                    onAutoAnalyzeChange = {},
+                    onDailyReminderChange = { en, hr ->
+                        updatedEnabled = en
+                        updatedHour = hr
+                    },
+                    practicedToday = false,
+                    onBack = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("reminder_hour_20").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        assertTrue(updatedEnabled)
+        assertEquals(20, updatedHour)
+        composeRule.onNodeWithTag("reminder_test_btn").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Aujourd'hui : session Académie encore à valider.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `onboarding step 7 allows enabling daily streak reminder opt-in`() {
+        val app = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.app.Application>()
+        org.robolectric.Shadows.shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
+
+        var optedIn = false
+        var optInHour = 0
+
+        composeRule.setContent {
+            FrancaisProTheme(darkTheme = false) {
+                OnboardingScreen(
+                    onFinishOnboarding = { _, _, _, _ -> },
+                    onSkipToDashboard = {},
+                    onReminderOptIn = { en, hr ->
+                        optedIn = en
+                        optInHour = hr
+                    }
+                )
+            }
+        }
+
+        // Aller jusqu'à l'étape 7 (index 6)
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick() // -> 2
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick() // -> 3
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick() // -> 4
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick() // -> 5
+        composeRule.onNodeWithTag("onboarding_skip_assessment_btn").performClick() // -> 6
+        composeRule.onNodeWithTag("onboarding_next_btn").performClick() // -> 7
+
+        composeRule.onNodeWithTag("onboarding_reminder_toggle").performScrollTo().performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("onboarding_finish_btn").performClick()
+        composeRule.waitForIdle()
+
+        assertTrue(optedIn)
+        assertEquals(19, optInHour)
+    }
 }

@@ -9,6 +9,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,6 +33,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Upload
@@ -311,7 +314,7 @@ fun ProfileScreen(
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = "Nouveautés v1.3.0 : Design System Premium unifié (tokens clair/sombre, grille 4 dp, typographie Fraunces, Plus Jakarta Sans & JetBrains Mono), Aperçu des performances sur 30 jours (Grammaire, Vocabulaire, Écriture), prononciation audio directe dans le Dictionnaire, précision & filtre d'erreurs en Exercices, et studio Correcteur raffiné de bout en bout.",
+                        text = "Nouveautés v${BuildConfig.VERSION_NAME} : Suivi de série quotidienne à l'Académie (boucliers protecteurs & récompenses par paliers), rappels intelligents WorkManager si la série du jour reste à valider, système de Badges & Réussites complet, parcours CECRL A1→C2 structuré et aperçu de progression sur 30 jours.",
                         style = MaterialTheme.typography.bodySmall,
                         color = semantic.textSecondary
                     )
@@ -354,6 +357,7 @@ private fun ProfileNavRow(
 /**
  * Écran 23 : Paramètres (thème, objectif quotidien, voix, rappels, indicateur discret « Fonctionne hors ligne »).
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     prefs: LocalUserPreferences,
@@ -362,16 +366,24 @@ fun SettingsScreen(
     onSpeechRateChange: (Float) -> Unit,
     onAutoAnalyzeChange: (Boolean) -> Unit,
     onDailyReminderChange: (Boolean, Int) -> Unit,
+    practicedToday: Boolean = false,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val semantic = LocalSemanticColors.current
+    var permissionDeniedNotice by remember { mutableStateOf(false) }
+    var reminderFeedback by remember { mutableStateOf<String?>(null) }
+
     val notifPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
+            permissionDeniedNotice = false
             onDailyReminderChange(true, prefs.reminderHour)
             DailyReminderWorker.schedule(context, true, prefs.reminderHour)
+            reminderFeedback = "Rappel programmé tous les jours à ${prefs.reminderHour}h00 si votre série du jour reste à valider."
+        } else {
+            permissionDeniedNotice = true
         }
     }
 
@@ -450,8 +462,22 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Rappel quotidien", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Text("Notification locale programmée sur cet appareil", style = MaterialTheme.typography.bodySmall, color = semantic.textSecondary)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Rappel quotidien de série", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                CategoryBadge(
+                                    label = if (prefs.dailyReminderEnabled) "${prefs.reminderHour}h00" else "Désactivé",
+                                    color = if (prefs.dailyReminderEnabled) semantic.success else semantic.textSecondary,
+                                    containerColor = if (prefs.dailyReminderEnabled) semantic.successContainer else semantic.surfaceSubtle
+                                )
+                            }
+                            Text(
+                                "Notification locale WorkManager uniquement si votre session Académie du jour n'est pas encore validée.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = semantic.textSecondary
+                            )
                         }
                         Switch(
                             checked = prefs.dailyReminderEnabled,
@@ -466,9 +492,94 @@ fun SettingsScreen(
                                         return@Switch
                                     }
                                 }
+                                permissionDeniedNotice = false
                                 onDailyReminderChange(enable, prefs.reminderHour)
                                 DailyReminderWorker.schedule(context, enable, prefs.reminderHour)
+                                reminderFeedback = if (enable) {
+                                    "Rappel programmé tous les jours à ${prefs.reminderHour}h00."
+                                } else {
+                                    "Rappels quotidiens désactivés."
+                                }
+                            },
+                            modifier = Modifier.testTag("settings_daily_reminder_switch")
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = if (practicedToday) {
+                            "Aujourd'hui : série du jour déjà validée — aucune notification inutile ne sera envoyée."
+                        } else {
+                            "Aujourd'hui : session Académie encore à valider."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (practicedToday) semantic.success else semantic.textSecondary
+                    )
+
+                    if (permissionDeniedNotice) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Autorisez les notifications dans les réglages système Android pour recevoir le rappel quotidien.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = semantic.warning,
+                            modifier = Modifier.testTag("reminder_permission_denied_notice")
+                        )
+                    }
+
+                    if (prefs.dailyReminderEnabled) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Heure du rappel",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(8, 12, 18, 19, 20, 21).forEach { hour ->
+                                FilterChip(
+                                    selected = prefs.reminderHour == hour,
+                                    onClick = {
+                                        onDailyReminderChange(true, hour)
+                                        DailyReminderWorker.schedule(context, true, hour)
+                                        reminderFeedback = "Heure de rappel mise à jour : ${hour}h00."
+                                    },
+                                    label = { Text("${hour}h00") },
+                                    modifier = Modifier.testTag("reminder_hour_$hour")
+                                )
                             }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        SecondaryButton(
+                            text = "Tester la notification maintenant",
+                            onClick = {
+                                if (!DailyReminderWorker.hasPostNotificationsPermission(context)) {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                    return@SecondaryButton
+                                }
+                                DailyReminderWorker.triggerImmediateCheck(context)
+                                reminderFeedback = if (practicedToday) {
+                                    "Vérification exécutée : série déjà validée aujourd'hui, aucun rappel envoyé."
+                                } else {
+                                    "Vérification lancée : notification de rappel de série envoyée."
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("reminder_test_btn")
+                        )
+                    }
+
+                    reminderFeedback?.let { msg ->
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = msg,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }

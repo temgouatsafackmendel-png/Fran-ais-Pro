@@ -78,6 +78,7 @@ import com.example.core.design.AppBottomNavigation
 import com.example.core.design.AppNavigationRail
 import com.example.core.design.BottomNavDestination
 import com.example.core.design.CurriculumIcons
+import com.example.core.work.DailyReminderWorker
 import com.example.di.AppContainer
 import com.example.ui.theme.FrancaisProDimens
 import com.example.ui.theme.LocalSemanticColors
@@ -123,7 +124,11 @@ private val mainTabs = listOf(
 )
 
 @Composable
-fun FrancaisProApp(container: AppContainer) {
+fun FrancaisProApp(
+    container: AppContainer,
+    pendingNotificationRoute: String? = null,
+    onPendingRouteConsumed: () -> Unit = {}
+) {
     val mainViewModel: MainAppViewModel = viewModel(
         factory = MainAppViewModel.Factory(container.repository, container.speechManager)
     )
@@ -227,6 +232,29 @@ fun FrancaisProApp(container: AppContainer) {
             }
         }
 
+        // Maintient WorkManager synchronisé avec les préférences locales (onboarding, paramètres, restauration JSON)
+        LaunchedEffect(isSeedReady, prefs.dailyReminderEnabled, prefs.reminderHour) {
+            if (isSeedReady) {
+                DailyReminderWorker.schedule(
+                    context = context,
+                    enabled = prefs.dailyReminderEnabled,
+                    reminderHour = prefs.reminderHour
+                )
+            }
+        }
+
+        // Ouvre directement l'Académie (ou la cible) lorsqu'une notification locale de rappel est touchée
+        LaunchedEffect(pendingNotificationRoute, currentRoute, profile?.onboardingCompleted) {
+            val target = pendingNotificationRoute ?: return@LaunchedEffect
+            if (currentRoute == Routes.SPLASH || currentRoute == Routes.ONBOARDING) return@LaunchedEffect
+            if (target in Routes.topLevelTabs) {
+                navigateToTab(target)
+            } else {
+                navController.navigate(target) { launchSingleTop = true }
+            }
+            onPendingRouteConsumed()
+        }
+
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val useNavigationRail = maxWidth >= 600.dp
 
@@ -310,6 +338,10 @@ fun FrancaisProApp(container: AppContainer) {
                                     navController.navigate(Routes.MAIN_TABS) {
                                         popUpTo(Routes.ONBOARDING) { inclusive = true }
                                     }
+                                },
+                                onReminderOptIn = { enabled, hour ->
+                                    mainViewModel.setDailyReminder(enabled, hour)
+                                    DailyReminderWorker.schedule(context, enabled, hour)
                                 }
                             )
                         }
@@ -764,6 +796,7 @@ fun FrancaisProApp(container: AppContainer) {
                                 onSpeechRateChange = mainViewModel::setSpeechRate,
                                 onAutoAnalyzeChange = mainViewModel::setAutoAnalyze,
                                 onDailyReminderChange = mainViewModel::setDailyReminder,
+                                practicedToday = academyStreakSummary.practicedToday,
                                 onBack = { navController.popBackStack() }
                             )
                         }
